@@ -174,3 +174,120 @@ def norm_flux_coo(pix_array, col_array_pos, spec = None):
             norm_array[ind0:ind1,1] = pix_array[ind0:ind1,1]/norm_sum
             norm_array[ind0:ind1,2] = pix_array[ind0:ind1,2]/norm_sum**2
     return norm_array
+
+def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, **kwargs):
+    """Fit a Univariate spline to pixel arrays
+    
+    Given a normalized sorted pixel array (in the same form as output from 
+    `norm_flux_coo`) this function fit univariate spline as a function of
+    pixel coordinates.
+
+    Parameters
+    ----------
+    pixel_sorted : ndarray
+        Normalized pixel array with pixel coordinates, normalized flux, normalized
+        variance, and column indices; sorted according to pixel coordinates
+    oversample : int, optional
+        Determines the number of knots in pixel coordindates direction. Default number
+        of knots is equal to total pixel numbers in aperture (corresponds to `oversample`=1).
+        If `oversample` is greater than 1, it will put oversamples*total pixel number knots
+        in pixel coordinate direction.
+    clip : int, optinal
+        Number of sigmas to perform sigma clipping while fitting a spline.
+        Default is 5.
+    niter : int, optional
+        Number of iteration to perform
+        Default is 5.
+    **kwargs :
+        Additional keywords provided to LSQUnivariateSpline
+    
+    Returns
+    -------
+    psf_spline : scipy.interpolate.LSQUnivariateSpline object
+        Fitted spline object.
+    mask : ndarray
+        Array containing location of masked points.
+    """
+    t0 = np.min(pixel_sorted[:,0]) + 1/oversample
+    t1 = np.max(pixel_sorted[:,0]) - 1/oversample
+    t = np.linspace(t0, t1, int(t1-t0)*int(oversample))
+
+    weights = np.maximum(1/pixel_sorted[:,2], 0)              # Why using Maximum?
+    psf_spline = LSQUnivariateSpline(x=pixel_sorted[:,0], 
+                                     y=pixel_sorted[:,1],
+                                     t=t,
+                                     w=weights)
+    
+    for i in range(niters):
+        # Sigma clipping
+        resids = pixel_sorted[:,1] - psf_spline(pixel_sorted[:,0])
+        limit = np.median(resids) + (clip*np.std(resids))
+        mask = np.abs(resids) < limit
+        # And spline fitting
+        psf_spline = LSQUnivariateSpline(x=pixel_sorted[mask,0], 
+                                 y=pixel_sorted[mask,1],
+                                 t=t,
+                                 w=weights[mask])
+        print('Iter {:d} / {:d}: {:.4f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_sorted[:,0])))
+    return psf_spline, mask
+
+def fit_spline_bivariate(pixel_array, oversample=1, ncol=10, clip=5, niters=3, **kwargs):
+    """Fit a Bivariate spline to pixel arrays
+    
+    Given a normalized pixel array (in the same form as output from 
+    `norm_flux_coo`) this function fit bi-variate spline as a function of
+    pixel coordinates and column indices.
+
+    Parameters
+    ----------
+    pixel_array : ndarray
+        Normalized pixel array with pixel coordinates, normalized flux, normalized
+        variance, and column indices.
+    oversample : int, optional
+        Determines the number of knots in pixel coordindates direction. Default number
+        of knots is equal to total pixel numbers in aperture (corresponds to `oversample`=1).
+        If `oversample` is greater than 1, it will put oversamples*total pixel number knots
+        in pixel coordinate direction.
+    ncol : int, optional
+        Number of knots in column indices direction.
+        Default is 10.
+    clip : int, optinal
+        Number of sigmas to perform sigma clipping while fitting a spline.
+        Default is 5.
+    niter : int, optional
+        Number of iteration to perform
+        Default is 5.
+    **kwargs :
+        Additional keywords provided to LSQBivariateSpline
+    
+    Returns
+    -------
+    psf_spline : scipy.interpolate.LSQBivariateSpline object
+        Fitted spline object.
+    mask : ndarray
+        Array containing location of masked points.
+    """
+    x1k, x2k = np.min(pixel_array[:,0]) + 1/oversample, np.max(pixel_array[:,0]) - 1/oversample
+    y1k, y2k = np.min(pixel_array[:,3]) + 1/oversample, np.max(pixel_array[:,3]) - 1/oversample
+
+    xknots = np.linspace(x1k, x2k, int(x2k-x1k)*int(oversample))
+    yknots = np.linspace(y1k, y2k, int(ncol))
+
+    weights = np.maximum(1/pixel_array[:,2], 0)
+    psf_spline = LSQBivariateSpline(x=pixel_array[:,0], y=pixel_array[:,3],\
+        z=pixel_array[:,1],\
+        tx=xknots, ty=yknots,\
+        w=weights, **kwargs)
+    
+    for i in range(niters):
+        # Sigma clipping
+        resids = pixel_array[:,1] - psf_spline(pixel_array[:,0], pixel_array[:,3], grid=False)
+        limit = np.median(resids) + (clip*np.std(resids))
+        mask = np.abs(resids) < limit
+        # And spline fitting
+        psf_spline = LSQBivariateSpline(x=pixel_array[mask,0], y=pixel_array[mask,3],\
+            z=pixel_array[mask,1],\
+            tx=xknots, ty=yknots,\
+            w=weights[mask], **kwargs)
+        print('Iter {:d} / {:d}: {:.4f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_array[:,0])))
+    return psf_spline, mask
