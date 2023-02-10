@@ -6,9 +6,9 @@
 version: 2
 
 # Set the version of Python and other tools you might need
-build:
-  tools:
-    python: "3.9"
+#build:
+#  tools:
+#    python: "3.9"
     # You can also specify other tool versions:
     # nodejs: "19"
     # rust: "1.64"
@@ -24,5 +24,6 @@ sphinx:
 
 # Optionally declare the Python requirements required to build your docs
 python:
+   version: 3.9
    install:
    - requirements: docs/requirements.txt
