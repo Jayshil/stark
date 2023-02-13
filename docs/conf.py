@@ -14,7 +14,11 @@ copyright = '2022, Jayshil A. Patel, Alexis Brandeker, Gayathri Viswanath, Maria
 author = 'Jayshil A. Patel, Alexis Brandeker, Gayathri Viswanath, Maria Cavallius'
 
 # The full version, including alpha/beta/rc tags
-from stark import __version__
+try:
+    from stark import __version__
+except:
+    __version__ = '0.1.0'      # Will need to change this later, when make it pip installable
+
 release = __version__
 
 # -- General configuration ---------------------------------------------------
