@@ -1,7 +1,7 @@
-stark Documentation
+:code:`stark` Documentation
 -------------------
 
-This is the documentation for stark.
+This is the documentation for :code:`stark`.
 
 .. toctree::
    :maxdepth: 2

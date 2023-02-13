@@ -76,7 +76,7 @@ def flux_coo(frame, variance, ord_pos, ap_rad):
     frame: ndarray
         3D array containing data, [nints, nrows, ncols]
     variance : ndarray
-        3D array as same size as `frame` containing variace of the data.
+        3D array as same size as `frame` containing variance of the data.
     ord_pos : ndarray
         2D array, with shape [nints, ncols] contaning pixel positions of order
     ap_rad : float
