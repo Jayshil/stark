@@ -212,23 +212,25 @@ def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, **kwargs
     t1 = np.max(pixel_sorted[:,0]) - 1/oversample
     t = np.linspace(t0, t1, int(t1-t0)*int(oversample))
 
-    weights = np.maximum(1/pixel_sorted[:,2], 0)              # Why using Maximum?
+    weights = np.maximum(1/pixel_sorted[:,2], 0)
     psf_spline = LSQUnivariateSpline(x=pixel_sorted[:,0], 
                                      y=pixel_sorted[:,1],
                                      t=t,
                                      w=weights)
     
+    mask = np.ones(len(pixel_sorted[:,0]), dtype=bool)
     for i in range(niters):
         # Sigma clipping
         resids = pixel_sorted[:,1] - psf_spline(pixel_sorted[:,0])
-        limit = np.median(resids) + (clip*np.std(resids))
+        limit = np.median(resids[mask]) + (clip*np.std(resids[mask]))
         mask = np.abs(resids) < limit
         # And spline fitting
         psf_spline = LSQUnivariateSpline(x=pixel_sorted[mask,0], 
                                  y=pixel_sorted[mask,1],
                                  t=t,
                                  w=weights[mask])
-        print('Iter {:d} / {:d}: {:.4f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_sorted[:,0])))
+
+        print('Iter {:d} / {:d}: {:.5f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_sorted[:,0])))
     return psf_spline, mask
 
 def fit_spline_bivariate(pixel_array, oversample=1, ncol=10, clip=5, niters=3, **kwargs):
@@ -279,15 +281,17 @@ def fit_spline_bivariate(pixel_array, oversample=1, ncol=10, clip=5, niters=3, *
         tx=xknots, ty=yknots,\
         w=weights, **kwargs)
     
+    mask = np.ones(len(pixel_array[:,0]), dtype=bool)
     for i in range(niters):
         # Sigma clipping
         resids = pixel_array[:,1] - psf_spline(pixel_array[:,0], pixel_array[:,3], grid=False)
-        limit = np.median(resids) + (clip*np.std(resids))
+        limit = np.median(resids[mask]) + (clip*np.std(resids[mask]))
         mask = np.abs(resids) < limit
         # And spline fitting
         psf_spline = LSQBivariateSpline(x=pixel_array[mask,0], y=pixel_array[mask,3],\
             z=pixel_array[mask,1],\
             tx=xknots, ty=yknots,\
             w=weights[mask], **kwargs)
-        print('Iter {:d} / {:d}: {:.4f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_array[:,0])))
+
+        print('Iter {:d} / {:d}: {:.5f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_array[:,0])))
     return psf_spline, mask
