@@ -235,22 +235,22 @@ def psf_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
     Parameters
     ----------
     psf_frame : ndarray
-        PSF frame with dimension [nints, nrows, ncols]
+        PSF frame with dimension [nrows, ncols]
     data : ndarray
-        3D array containing data, [nints, nrows, ncols]
+        2D array containing data, [nrows, ncols]
     variance : ndarray
         Variance on the data frame, same shape as the `data` array
     mask : ndarray
         Array containing mask; only those points with value = True will be considered in extraction
     ord_pos : ndarray
-        2D array, with shape [nints, ncols] contaning pixel positions of order
+        1D array, with length ncols, contaning pixel positions of order
     ap_rad : float
         Radius of the aperture to consider
     
     Returns
     -------
     spec : ndarray
-        Extracted flux as a matrix with format [nints, ncols]
+        Extracted flux as a matrix with format [ncols]
     var : ndarray
         Variance of each fluc point in the same format as `spec`.
     synth : ndarray
@@ -259,35 +259,33 @@ def psf_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
     """
 
     ncols = data.shape[2]
-    nints = data.shape[0]
 
-    spec = np.zeros((nints, ncols))
-    var = np.zeros((nints, ncols))
+    spec = np.zeros(ncols)
+    var = np.zeros(ncols)
     synth = np.zeros(data.shape)
 
-    for integration in range(nints):
-        for col in range(ncols):
-            if ord_pos[integration, col] < 0 or ord_pos[integration, col] >= data.shape[1]:
-                continue
-            i0 =  int(round(ord_pos[integration, col] - ap_rad))
-            i1 = int(round(ord_pos[integration, col] + ap_rad))
+    for col in range(ncols):
+        if ord_pos[col] < 0 or ord_pos[col] >= data.shape[0]:
+            continue
+        i0 =  int(round(ord_pos[col] - ap_rad))
+        i1 = int(round(ord_pos[col] + ap_rad))
 
-            if i0 < 0:
-                i0 = 0
-            if i1 >= data.shape[1]:
-                i1 = data.shape[1] - 1
- 
-            ind = np.array(range(i0,i1))
-            mask2 = psf_frame[integration, ind, col] > 0
-            ind = ind[mask2]
-            denom = np.sum(mask[ind, col] * psf_frame[integration, ind, col]**2 / 
-                           variance[integration, ind, col])
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                spec[integration, col] = (np.sum(mask[ind, col] * psf_frame[integration, ind, col] *
-                    data[integration, ind, col] / variance[integration, ind, col]) / denom )
-                var[integration, col] = np.sum(mask[ind, col] * psf_frame[integration, ind, col]) / denom
-            synth[integration, i0:i1, col] = spec[integration, col] * psf_frame[integration, i0:i1, col]
+        if i0 < 0:
+            i0 = 0
+        if i1 >= data.shape[0]:
+            i1 = data.shape[0] - 1
+
+        ind = np.array(range(i0,i1))
+        mask2 = psf_frame[ind, col] > 0
+        ind = ind[mask2]
+        denom = np.sum(mask[ind, col] * psf_frame[ind, col]**2 / 
+                        variance[ind, col])
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            spec[col] = (np.sum(mask[ind, col] * psf_frame[ind, col] *
+                data[ind, col] / variance[ind, col]) / denom )
+            var[col] = np.sum(mask[ind, col] * psf_frame[ind, col]) / denom
+        synth[i0:i1, col] = spec[col] * psf_frame[i0:i1, col]
     return spec, var, synth
 
 def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, **kwargs):
