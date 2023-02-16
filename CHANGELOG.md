@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Functio  to generate PSF frame using bivariate spline fitting to the whole dataset.
+- Added function to perform background subtraction.
+- Created `reduce.py`
+- Function to generate PSF frame using bivariate spline fitting to the whole dataset.
 - Function to extract spectrum by fitting psf frame to the data.
 - Function to generate psf frame using univariate spline fitting to the whole dataset.
 - Functions to build a pixel array list and its normalized version.
