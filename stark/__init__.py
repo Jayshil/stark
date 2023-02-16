@@ -3,3 +3,4 @@
 from .version import __version__
 __all__ = []
 from .extract import *
+from .reduce import *
