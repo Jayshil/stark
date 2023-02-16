@@ -176,7 +176,7 @@ def norm_flux_coo(pix_array, col_array_pos, spec = None):
     return norm_array
 
 def univariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
-    """To generate PSF frame for the data
+    """To generate PSF frame by fitting univariate spline for the whole dataset
     
     Given frame, order position, aperture radius and normalized pixel array,
     this function derives a single PSF for whole data cube and use it to 
@@ -224,6 +224,55 @@ def univariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
             x = np.arange(i0,i1) - ord_pos[integration, col]
             frame[integration, i0:i1, col] = np.maximum(psf_spline(x), 0) # Enforce positivity
     #        frame[integration, i0:i1, col] /= np.sum(frame[integration, i0:i1, col]) # Enforce normalisation (why commented)
+    return frame
+
+def bivariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
+    """To generate PSF frame by fitting a bivariate spline to the whole dataset
+    
+    Given frame, order position, aperture radius and normalized pixel array,
+    this function derives a single 2D PSF for whole data cube and use it to 
+    generate pixel-sampled PSFs for each column.
+
+    Parameters
+    ----------
+    data : ndarray
+        3D array containing data, [nints, nrows, ncols]
+    order_pos : ndarray
+        2D array, with shape [nints, ncols] contaning pixel positions of order
+    ap_rad : float
+        Radius of the aperture to consider
+    pix_array : ndarray
+        Normalized pixel positions, as computed from `norm_flux_coo`.
+    **kwargs :
+        Additional keywords provided to `fit_spline_bivariate` function and to LSQBivariateSpline
+    
+    Returns
+    -------
+    frame : ndarray
+        Data cube containing pixel-sampled PSF for each column
+    """
+    frame = np.copy(data)
+    
+    nints = frame.shape[0]
+    ncols = frame.shape[2]
+
+    # To sort array
+    psf_spline, mask = fit_spline_bivariate(pix_array, **kwargs)
+
+    for integration in range(nints):
+        for col in range(ncols):
+            if ord_pos[integration, col] < 0 or ord_pos[integration, col] >= frame.shape[1]:
+                continue
+            i0 =  int(round(ord_pos[integration, col] - ap_rad))
+            i1 = int(round(ord_pos[integration, col] + ap_rad))
+            if i0 < 0:
+                i0 = 0
+            if i1 >= frame.shape[1]:
+                i1 = frame.shape[1] - 1
+
+            x = np.arange(i0,i1) - ord_pos[integration, col]
+            frame[integration, i0:i1, col] = np.maximum(psf_spline(x, np.ones(x.shape)*col, grid=False), 0) # Enforce positivity
+            frame[integration, i0:i1, col] /= np.sum(frame[integration, i0:i1, col])                        # Enforce normalisation
     return frame
 
 def psf_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
