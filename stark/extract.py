@@ -10,7 +10,7 @@ from scipy.interpolate import LSQUnivariateSpline, LSQBivariateSpline
 import warnings
 import time
 
-def aperture_extract(frame, variance, ord_pos, ap_rad, mask, uniform = False):
+def aperture_extract(frame, variance, ord_pos, ap_rad, mask = None, uniform = False):
     """ Simple aperture extraction of the spectrum
 
     Given the 2D `frame` of the data, and its `variance`, this function
@@ -27,9 +27,10 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, mask, uniform = False):
         Array defining position of the trace
     ap_rad : float
         Radius of the aperture around the order position
-    mask : ndarray
+    mask : ndarray, optional
         Array containing mask, same shape as `frame`.
-        Only those points with value 1 (or True) will be included in calculation
+        Only those points with value 1 (or True) will be included in calculation.
+        Default is None, all points will be used.
     uniform : bool, optional
         Boolean on whether the slit is uniformally lit or not.
         If not then it will simply sum up counts in the aperture
@@ -47,6 +48,9 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, mask, uniform = False):
     ncols = frame.shape[1]
     spec = np.zeros(ncols)
     var = np.zeros(ncols)
+    
+    if mask is None:
+        mask = np.ones(frame.shape)
 
     for col in range(ncols):
         if ord_pos[col] < 0 or ord_pos[col] >= frame.shape[0]:
