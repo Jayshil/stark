@@ -10,7 +10,7 @@ from scipy.interpolate import LSQUnivariateSpline, LSQBivariateSpline
 import warnings
 import time
 
-def aperture_extract(frame, variance, ord_pos, ap_rad, uniform = False):
+def aperture_extract(frame, variance, ord_pos, ap_rad, mask, uniform = False):
     """ Simple aperture extraction of the spectrum
 
     Given the 2D `frame` of the data, and its `variance`, this function
@@ -27,6 +27,9 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, uniform = False):
         Array defining position of the trace
     ap_rad : float
         Radius of the aperture around the order position
+    mask : ndarray
+        Array containing mask, same shape as `frame`.
+        Only those points with value 1 (or True) will be included in calculation
     uniform : bool, optional
         Boolean on whether the slit is uniformally lit or not.
         If not then it will simply sum up counts in the aperture
@@ -56,11 +59,11 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, uniform = False):
         if i1 >= frame.shape[0]:
             i1 = frame.shape[0] - 1
         if uniform:
-            spec[col] = np.mean(frame[i0:i1,col])*nslitpix
-            var[col] = np.mean(variance[i0:i1,col])*nslitpix
+            spec[col] = np.mean(mask[i0:i1,col]*frame[i0:i1,col])*nslitpix
+            var[col] = np.mean(mask[i0:i1,col]*variance[i0:i1,col])*nslitpix
         else:
-            spec[col] = np.sum(frame[i0:i1,col])
-            var[col] = np.sum(variance[i0:i1,col])
+            spec[col] = np.sum(mask[i0:i1,col]*frame[i0:i1,col])
+            var[col] = np.sum(mask[i0:i1,col]*variance[i0:i1,col])
     return spec, var
 
 def flux_coo(frame, variance, ord_pos, ap_rad):
@@ -224,7 +227,7 @@ def univariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
             x = np.arange(i0,i1) - ord_pos[integration, col]
             frame[integration, i0:i1, col] = np.maximum(psf_spline(x), 0) # Enforce positivity
     #        frame[integration, i0:i1, col] /= np.sum(frame[integration, i0:i1, col]) # Enforce normalisation (why commented)
-    return frame
+    return frame, psf_spline
 
 def bivariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
     """To generate PSF frame by fitting a bivariate spline to the whole dataset
@@ -273,7 +276,7 @@ def bivariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
             x = np.arange(i0,i1) - ord_pos[integration, col]
             frame[integration, i0:i1, col] = np.maximum(psf_spline(x, np.ones(x.shape)*col, grid=False), 0) # Enforce positivity
             frame[integration, i0:i1, col] /= np.sum(frame[integration, i0:i1, col])                        # Enforce normalisation
-    return frame
+    return frame, psf_spline
 
 def psf_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
     """Use derived PSF frame (the psf sampled on the image) to extract the spectrum.
@@ -359,7 +362,7 @@ def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, **kwargs
         Default is 5.
     niter : int, optional
         Number of iteration to perform
-        Default is 5.
+        Default is 3.
     **kwargs :
         Additional keywords provided to LSQUnivariateSpline
     
@@ -420,7 +423,7 @@ def fit_spline_bivariate(pixel_array, oversample=1, ncol=10, clip=5, niters=3, *
         Default is 5.
     niter : int, optional
         Number of iteration to perform
-        Default is 5.
+        Default is 3.
     **kwargs :
         Additional keywords provided to LSQBivariateSpline
     
