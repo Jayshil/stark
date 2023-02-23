@@ -63,7 +63,7 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, uniform = False):
             var[col] = np.sum(variance[i0:i1,col])
     return spec, var
 
-def flux_coo(frame, variance, ord_pos, ap_rad):
+def flux_coo(frame, variance, ord_pos, ap_rad, mask = None):
     """ To produce pixel list with source coordinates
     
     Given a 3D data cube, this function gives array with coordinates
@@ -81,12 +81,16 @@ def flux_coo(frame, variance, ord_pos, ap_rad):
         2D array, with shape [nints, ncols] contaning pixel positions of order
     ap_rad : float
         Aperture radius
+    mask : ndarray, optional
+        3D array containing mask, same shape as `frame`.
+        Default is None.
     
     Returns
     -------
     pix_array : ndarray
         Array with columns coordinate (in form of distance from order
-        positions), flux and variance. Approx. of size [2*ap_rad*ncols*nints, 3]
+        positions), flux, variance, column number and mask. 
+        Approx. of size [2*ap_rad*ncols*nints, 5]
     col_array_pos : ndarray
         Array with column's index in pix_array along with aperture size.
         This is used to be able to pick data from desired columns. E.g., if 
@@ -96,6 +100,9 @@ def flux_coo(frame, variance, ord_pos, ap_rad):
     """
     nints = frame.shape[0]
     ncols = frame.shape[2]
+
+    if mask is None:
+        mask = np.ones(frame.shape)
     
     col_array_pos = np.zeros((nints, ncols, 2), dtype=int) # position and length in array
     pix_list = []
@@ -115,18 +122,19 @@ def flux_coo(frame, variance, ord_pos, ap_rad):
             if i1 >= frame.shape[1]:
                 i1 = frame.shape[1] - 1
             npix = i1-i0                       # Length of aperture
-            col_array = np.zeros((npix,4))     # (aper_size, 3) array, containing,
+            col_array = np.zeros((npix,5))     # (aper_size, 3) array, containing,
             col_array[:,0] = np.array(range(i0,i1))-ord_pos[integration, col]    # pix position from center
             col_array[:,1] = frame[integration, i0:i1, col]                      # data at those points, and
             col_array[:,2] = variance[integration, i0:i1, col]                   # variance on those data points
             col_array[:,3] = np.ones(npix)*col
+            col_array[:,4] = mask[integration, i0:i1, col]
             col_array_pos[integration, col, 1] = npix
             col_pos += npix
             pix_list.append(col_array)         # Is a list containing col_array for each column
         
     # Make continuous array out of list of arrays
     num_entries = np.sum([p.shape[0] for p in pix_list])
-    pix_array = np.zeros((num_entries,4))
+    pix_array = np.zeros((num_entries,5))
     entry = 0
     for p in pix_list:
         N = len(p)
@@ -223,7 +231,7 @@ def univariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
 
             x = np.arange(i0,i1) - ord_pos[integration, col]
             frame[integration, i0:i1, col] = np.maximum(psf_spline(x), 0) # Enforce positivity
-    #        frame[integration, i0:i1, col] /= np.sum(frame[integration, i0:i1, col]) # Enforce normalisation (why commented)
+            frame[integration, i0:i1, col] /= np.sum(frame[integration, i0:i1, col]) # Enforce normalisation (why commented)
     return frame, psf_spline
 
 def bivariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
@@ -307,7 +315,7 @@ def psf_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
         useful for producing a residual image.
     """
 
-    ncols = data.shape[2]
+    ncols = data.shape[1]
 
     spec = np.zeros(ncols)
     var = np.zeros(ncols)
@@ -374,18 +382,22 @@ def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, **kwargs
     t1 = np.max(pixel_sorted[:,0]) - 1/oversample
     t = np.linspace(t0, t1, int(t1-t0)*int(oversample))
 
+    # Mask for bad pixels
+    mask_bp = np.asarray(pixel_sorted[:,4], dtype=bool)
+
     weights = np.maximum(1/pixel_sorted[:,2], 0)
-    psf_spline = LSQUnivariateSpline(x=pixel_sorted[:,0], 
-                                     y=pixel_sorted[:,1],
+    psf_spline = LSQUnivariateSpline(x=pixel_sorted[mask_bp,0], 
+                                     y=pixel_sorted[mask_bp,1],
                                      t=t,
-                                     w=weights)
+                                     w=weights[mask_bp])
     
-    mask = np.ones(len(pixel_sorted[:,0]), dtype=bool)
+    mask = np.ones(len(pixel_sorted[:,0]), dtype=bool) * mask_bp
     for i in range(niters):
         # Sigma clipping
         resids = pixel_sorted[:,1] - psf_spline(pixel_sorted[:,0])
         limit = np.median(resids[mask]) + (clip*np.std(resids[mask]))
         mask = np.abs(resids) < limit
+        mask = mask * mask_bp
         # And spline fitting
         psf_spline = LSQUnivariateSpline(x=pixel_sorted[mask,0], 
                                  y=pixel_sorted[mask,1],
@@ -437,18 +449,22 @@ def fit_spline_bivariate(pixel_array, oversample=1, ncol=10, clip=5, niters=3, *
     xknots = np.linspace(x1k, x2k, int(x2k-x1k)*int(oversample))
     yknots = np.linspace(y1k, y2k, int(ncol))
 
+    # Mask for bad pixels
+    mask_bp = np.asarray(pixel_array[:,4], dtype=bool)
+
     weights = np.maximum(1/pixel_array[:,2], 0)
-    psf_spline = LSQBivariateSpline(x=pixel_array[:,0], y=pixel_array[:,3],\
-        z=pixel_array[:,1],\
+    psf_spline = LSQBivariateSpline(x=pixel_array[mask_bp,0], y=pixel_array[mask_bp,3],\
+        z=pixel_array[mask_bp,1],\
         tx=xknots, ty=yknots,\
-        w=weights, **kwargs)
+        w=weights[mask_bp], **kwargs)
     
-    mask = np.ones(len(pixel_array[:,0]), dtype=bool)
+    mask = np.ones(len(pixel_array[:,0]), dtype=bool) * mask_bp
     for i in range(niters):
         # Sigma clipping
         resids = pixel_array[:,1] - psf_spline(pixel_array[:,0], pixel_array[:,3], grid=False)
         limit = np.median(resids[mask]) + (clip*np.std(resids[mask]))
         mask = np.abs(resids) < limit
+        mask = mask * mask_bp
         # And spline fitting
         psf_spline = LSQBivariateSpline(x=pixel_array[mask,0], y=pixel_array[mask,3],\
             z=pixel_array[mask,1],\
