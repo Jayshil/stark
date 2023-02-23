@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Added mask in function for aperture extraction to mask out bad data points.
-
 ### Added
 
 - Added function to perform background subtraction.

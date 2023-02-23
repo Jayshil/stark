@@ -10,7 +10,7 @@ from scipy.interpolate import LSQUnivariateSpline, LSQBivariateSpline
 import warnings
 import time
 
-def aperture_extract(frame, variance, ord_pos, ap_rad, mask = None, uniform = False):
+def aperture_extract(frame, variance, ord_pos, ap_rad, uniform = False):
     """ Simple aperture extraction of the spectrum
 
     Given the 2D `frame` of the data, and its `variance`, this function
@@ -27,10 +27,6 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, mask = None, uniform = Fa
         Array defining position of the trace
     ap_rad : float
         Radius of the aperture around the order position
-    mask : ndarray, optional
-        Array containing mask, same shape as `frame`.
-        Only those points with value 1 (or True) will be included in calculation.
-        Default is None, all points will be used.
     uniform : bool, optional
         Boolean on whether the slit is uniformally lit or not.
         If not then it will simply sum up counts in the aperture
@@ -48,9 +44,6 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, mask = None, uniform = Fa
     ncols = frame.shape[1]
     spec = np.zeros(ncols)
     var = np.zeros(ncols)
-    
-    if mask is None:
-        mask = np.ones(frame.shape)
 
     for col in range(ncols):
         if ord_pos[col] < 0 or ord_pos[col] >= frame.shape[0]:
@@ -63,11 +56,11 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, mask = None, uniform = Fa
         if i1 >= frame.shape[0]:
             i1 = frame.shape[0] - 1
         if uniform:
-            spec[col] = np.mean(mask[i0:i1,col]*frame[i0:i1,col])*nslitpix
-            var[col] = np.mean(mask[i0:i1,col]*variance[i0:i1,col])*nslitpix
+            spec[col] = np.mean(frame[i0:i1,col])*nslitpix
+            var[col] = np.mean(variance[i0:i1,col])*nslitpix
         else:
-            spec[col] = np.sum(mask[i0:i1,col]*frame[i0:i1,col])
-            var[col] = np.sum(mask[i0:i1,col]*variance[i0:i1,col])
+            spec[col] = np.sum(frame[i0:i1,col])
+            var[col] = np.sum(variance[i0:i1,col])
     return spec, var
 
 def flux_coo(frame, variance, ord_pos, ap_rad):
