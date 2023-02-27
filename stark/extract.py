@@ -65,7 +65,22 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, uniform = False):
 
 class SingleOrderPSF(object):
     """
-    Class to generate PSF frame from single order spectral data.
+    Given a data frame, its variance, order positions and aperture radius, this class generates a PSF frame for the data. The input
+    data should be a 3D data cube with dimensions [nints, nrows, ncols], with variace array of the same shape. Optionally,
+    a normalisation spectra and bad pixel map can be provided. This class works only for single order spectrum.
+
+    Example usage:
+    >>> data = stark.SingleOrderPSF(frame=data_frame, variance=data_variance, ord_pos=ord_pos, ap_rad=aperture_radius)
+    >>> psf_frame, psf_spline = data.univariate_psf_frame()
+
+    when fitting a univariate spline, as function of pixel coordinate, to the whole dataset, or,
+
+    >>> data = stark.SingleOrderPSF(frame=data_frame, variance=data_variance, ord_pos=ord_pos, ap_rad=aperture_radius)
+    >>> psf_frame, psf_spline = data.bivariate_psf_frame()
+
+    when fitting bivariate spline, as function of pixel coordinate and column number, to the whole dataset.
+
+    Here, `psf_frame` is resultant PSF frame and `psf_spline` is `scipy.interpolate.LSQUnivariateSpline` (or, `scipy.interpolate.LSQBivariateSpline`) object.
 
     Parameters
     ----------
@@ -77,15 +92,18 @@ class SingleOrderPSF(object):
         2D array, with shape [nints, ncols] contaning pixel positions of order
     ap_rad : float
         Aperture radius
+    spec : ndarray, optional
+        2D array, of [nints, ncols] size, providing normalisation spectrum.
     mask : ndarray, optional
         3D array containing mask, same shape as `frame`.
         Default is None.
     """
-    def __init__(self, frame, variance, ord_pos, ap_rad, mask=None):
+    def __init__(self, frame, variance, ord_pos, ap_rad, spec=None, mask=None):
         self.frame = frame
         self.variance = variance
         self.ord_pos = ord_pos
         self.ap_rad = ap_rad
+        self.spec = spec
 
         if mask is None:
             self.mask = np.ones(self.frame.shape)
@@ -95,44 +113,32 @@ class SingleOrderPSF(object):
         # Data
         self.nints = frame.shape[0]
         self.ncols = frame.shape[2]
-
-        # Outputs
-        self.pix_array = None
-        self.col_array_pos = None
     
     def flux_coo(self):
         """ To produce pixel list with source coordinates
         
-        Given a 3D data cube, this function gives array with coordinates
-        (distace from order position), their flux and variances.
-        This information is to be used when producing PSFs.
+        Given a 3D data cube, this function gives array with coordinates (distace from order position), 
+        their flux and variances. This information is to be used when producing PSFs.
         This function works for single order and all columns.
 
-        Parameters
-        ----------
-        No additional parameters are needed.
-        
         Returns
         -------
         pix_array : ndarray
-            Array with columns coordinate (in form of distance from order
-            positions), flux, variance, column number and mask. 
+            Array with columns coordinate (in form of distance from ordercpositions), flux, variance, column number and mask. 
             Approx. of size [2*ap_rad*ncols*nints, 5]
         col_array_pos : ndarray
-            Array with column's index in pix_array along with aperture size.
-            This is used to be able to pick data from desired columns. E.g., if 
-            the data in pix_array from columns 100 to 300 are desired, those correspond
-            to indices col_array_pos[i,100,0] to col_array_pos[i,300,0] 
-            for i-th integration in the pix_array.
+            Array with column's index in pix_array along with aperture size.cThis is used to be able to pick data from desired
+            columns. E.g., if the data in pix_array from columns 100 to 300 are desired, those correspondccto indices 
+            col_array_pos[i,100,0] to col_array_pos[i,300,0] for i-th integration in the pix_array.
         """
         
-        col_array_pos = np.zeros((self.nints, self.ncols, 2), dtype=int) # position and length in array
+        self.col_array_pos = np.zeros((self.nints, self.ncols, 2), dtype=int) # position and length in array
         pix_list = []
         col_pos = 0
 
         for integration in range(self.nints):
             for col in range(self.ncols):
-                col_array_pos[integration, col, 0] = col_pos
+                self.col_array_pos[integration, col, 0] = col_pos
 
                 if self.ord_pos[integration, col] < 0 or self.ord_pos[integration, col] >= self.frame.shape[1]:
                     continue
@@ -149,33 +155,25 @@ class SingleOrderPSF(object):
                 col_array[:,1] = self.frame[integration, i0:i1, col]                      # data at those points, and
                 col_array[:,2] = self.variance[integration, i0:i1, col]                   # variance on those data points
                 col_array[:,3] = np.ones(npix)*col                                        # Column number
-                col_array[:,4] = self.mask[integration, i0:i1, col]                            # mask
-                col_array_pos[integration, col, 1] = npix
+                col_array[:,4] = self.mask[integration, i0:i1, col]                       # mask
+                self.col_array_pos[integration, col, 1] = npix
                 col_pos += npix
                 pix_list.append(col_array)         # Is a list containing col_array for each column
             
         # Make continuous array out of list of arrays
         num_entries = np.sum([p.shape[0] for p in pix_list])
-        pix_array = np.zeros((num_entries,5))
+        self.pix_array = np.zeros((num_entries,5))
         entry = 0
         for p in pix_list:
             N = len(p)
-            pix_array[entry:(entry+N),:] = p
+            self.pix_array[entry:(entry+N),:] = p
             entry += N
-        self.pix_array, self.col_array_pos = pix_array, col_array_pos
-        return pix_array, col_array_pos
 
-    def norm_flux_coo(self, spec = None):
+    def norm_flux_coo(self):
         """ Normalises the fluxes by summing up pixel values.
         
-        Given the pixel array and col_array_pos from `flux_coo`
-        function, this function provides the normalized fluxes.
+        Given the pixel array and col_array_pos from `flux_coo` function, this function provides the normalized fluxes.
         If no normalisation spectrum is provided, the pixel sum is used.
-
-        Parameters
-        ----------
-        spec : ndarray, optional
-            2D array, of [nints, ncols] size, providing normalisation spectrum.
         
         Returns
         -------
@@ -183,123 +181,123 @@ class SingleOrderPSF(object):
             Array with pixel coordinates, normalized flux, normalized variance
             and column indices.
         """
-        norm_array = self.pix_array.copy()
+        # Creating pixel list
+        self.flux_coo()
+        # Initializing an array for normalized pixel list
+        self.norm_array = self.pix_array.copy()
         
         min_norm = 0.01
         for integration in range(self.nints):
             for col in range(self.ncols):
                 ind0 = self.col_array_pos[integration, col, 0]
                 ind1 = ind0 + self.col_array_pos[integration, col, 1]
-                if spec is None:
+                if self.spec is None:
                     norm_sum = np.sum(self.pix_array[ind0:ind1,1])
                 else:
-                    norm_sum = spec[integration, col]
+                    norm_sum = self.spec[integration, col]
                 norm_sum = np.maximum(norm_sum, min_norm)
-                norm_array[ind0:ind1,1] = self.pix_array[ind0:ind1,1]/norm_sum
-                norm_array[ind0:ind1,2] = self.pix_array[ind0:ind1,2]/norm_sum**2
-        return norm_array
+                self.norm_array[ind0:ind1,1] = self.pix_array[ind0:ind1,1]/norm_sum
+                self.norm_array[ind0:ind1,2] = self.pix_array[ind0:ind1,2]/norm_sum**2
 
-def univariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
-    """To generate PSF frame by fitting univariate spline for the whole dataset
-    
-    Given frame, order position, aperture radius and normalized pixel array,
-    this function derives a single PSF for whole data cube and use it to 
-    generate pixel-sampled PSFs for each column.
+    def univariate_psf_frame(self, **kwargs):
+        """To generate PSF frame by fitting univariate spline for the whole dataset
+        
+        Given frame, order position, aperture radius and normalized pixel array,
+        this function derives a single PSF for whole data cube and use it to 
+        generate pixel-sampled PSFs for each column.
 
-    Parameters
-    ----------
-    data : ndarray
-        3D array containing data, [nints, nrows, ncols]
-    order_pos : ndarray
-        2D array, with shape [nints, ncols] contaning pixel positions of order
-    ap_rad : float
-        Radius of the aperture to consider
-    pix_array : ndarray
-        Normalized pixel positions, as computed from `norm_flux_coo`.
-    **kwargs :
-        Additional keywords provided to `fit_spline_univariate` function and to LSQUnivariateSpline
-    
-    Returns
-    -------
-    frame : ndarray
-        Data cube containing pixel-sampled PSF for each column
-    """
-    frame = np.copy(data)
-    
-    nints = frame.shape[0]
-    ncols = frame.shape[2]
+        Parameters
+        ----------
+        data : ndarray
+            3D array containing data, [nints, nrows, ncols]
+        order_pos : ndarray
+            2D array, with shape [nints, ncols] contaning pixel positions of order
+        ap_rad : float
+            Radius of the aperture to consider
+        pix_array : ndarray
+            Normalized pixel positions, as computed from `norm_flux_coo`.
+        **kwargs :
+            Additional keywords provided to `fit_spline_univariate` function and to LSQUnivariateSpline
+        
+        Returns
+        -------
+        frame : ndarray
+            Data cube containing pixel-sampled PSF for each column
+        """
+        # Generating normalized pixel array
+        self.norm_flux_coo()
+        psf_frame = np.copy(self.frame)
 
-    # To sort array
-    sortarg =  np.argsort(pix_array[:,0])
-    sort_arr = pix_array[sortarg,:]
-    psf_spline, mask = fit_spline_univariate(sort_arr, **kwargs)
+        # To sort array
+        sortarg =  np.argsort(self.norm_array[:,0])
+        sort_arr = self.norm_array[sortarg,:]
+        psf_spline, mask = fit_spline_univariate(sort_arr, **kwargs)
 
-    for integration in range(nints):
-        for col in range(ncols):
-            if ord_pos[integration, col] < 0 or ord_pos[integration, col] >= frame.shape[1]:
-                continue
-            i0 =  int(round(ord_pos[integration, col] - ap_rad))
-            i1 = int(round(ord_pos[integration, col] + ap_rad))
-            if i0 < 0:
-                i0 = 0
-            if i1 >= frame.shape[1]:
-                i1 = frame.shape[1] - 1
+        for integration in range(self.nints):
+            for col in range(self.ncols):
+                if self.ord_pos[integration, col] < 0 or self.ord_pos[integration, col] >= psf_frame.shape[1]:
+                    continue
+                i0 =  int(round(self.ord_pos[integration, col] - self.ap_rad))
+                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad))
+                if i0 < 0:
+                    i0 = 0
+                if i1 >= psf_frame.shape[1]:
+                    i1 = psf_frame.shape[1] - 1
 
-            x = np.arange(i0,i1) - ord_pos[integration, col]
-            frame[integration, i0:i1, col] = np.maximum(psf_spline(x), 0) # Enforce positivity
-            frame[integration, i0:i1, col] /= np.sum(frame[integration, i0:i1, col]) # Enforce normalisation (why commented)
-    return frame, psf_spline
+                x = np.arange(i0,i1) - self.ord_pos[integration, col]
+                psf_frame[integration, i0:i1, col] = np.maximum(psf_spline(x), 0) # Enforce positivity
+                psf_frame[integration, i0:i1, col] /= np.sum(psf_frame[integration, i0:i1, col]) # Enforce normalisation (why commented)
+        return psf_frame, psf_spline
 
-def bivariate_psf_frame(data, ord_pos, ap_rad, pix_array, **kwargs):
-    """To generate PSF frame by fitting a bivariate spline to the whole dataset
-    
-    Given frame, order position, aperture radius and normalized pixel array,
-    this function derives a single 2D PSF for whole data cube and use it to 
-    generate pixel-sampled PSFs for each column.
+    def bivariate_psf_frame(self, **kwargs):
+        """To generate PSF frame by fitting a bivariate spline to the whole dataset
+        
+        Given frame, order position, aperture radius and normalized pixel array,
+        this function derives a single 2D PSF for whole data cube and use it to 
+        generate pixel-sampled PSFs for each column.
 
-    Parameters
-    ----------
-    data : ndarray
-        3D array containing data, [nints, nrows, ncols]
-    order_pos : ndarray
-        2D array, with shape [nints, ncols] contaning pixel positions of order
-    ap_rad : float
-        Radius of the aperture to consider
-    pix_array : ndarray
-        Normalized pixel positions, as computed from `norm_flux_coo`.
-    **kwargs :
-        Additional keywords provided to `fit_spline_bivariate` function and to LSQBivariateSpline
-    
-    Returns
-    -------
-    frame : ndarray
-        Data cube containing pixel-sampled PSF for each column
-    """
-    frame = np.copy(data)
-    
-    nints = frame.shape[0]
-    ncols = frame.shape[2]
+        Parameters
+        ----------
+        data : ndarray
+            3D array containing data, [nints, nrows, ncols]
+        order_pos : ndarray
+            2D array, with shape [nints, ncols] contaning pixel positions of order
+        ap_rad : float
+            Radius of the aperture to consider
+        pix_array : ndarray
+            Normalized pixel positions, as computed from `norm_flux_coo`.
+        **kwargs :
+            Additional keywords provided to `fit_spline_bivariate` function and to LSQBivariateSpline
+        
+        Returns
+        -------
+        frame : ndarray
+            Data cube containing pixel-sampled PSF for each column
+        """
+        # Generating normalized pixel array
+        self.norm_flux_coo()
+        psf_frame = np.copy(self.frame)
 
-    # To sort array
-    psf_spline, mask = fit_spline_bivariate(pix_array, **kwargs)
+        # To sort array
+        psf_spline, mask = fit_spline_bivariate(self.norm_array, **kwargs)
 
-    for integration in range(nints):
-        for col in range(ncols):
-            if ord_pos[integration, col] < 0 or ord_pos[integration, col] >= frame.shape[1]:
-                continue
-            i0 =  int(round(ord_pos[integration, col] - ap_rad))
-            i1 = int(round(ord_pos[integration, col] + ap_rad))
-            if i0 < 0:
-                i0 = 0
-            if i1 >= frame.shape[1]:
-                i1 = frame.shape[1] - 1
+        for integration in range(self.nints):
+            for col in range(self.ncols):
+                if self.ord_pos[integration, col] < 0 or self.ord_pos[integration, col] >= psf_frame.shape[1]:
+                    continue
+                i0 =  int(round(self.ord_pos[integration, col] - self.ap_rad))
+                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad))
+                if i0 < 0:
+                    i0 = 0
+                if i1 >= psf_frame.shape[1]:
+                    i1 = psf_frame.shape[1] - 1
 
-            x = np.arange(i0,i1) - ord_pos[integration, col]
-            frame[integration, i0:i1, col] = np.maximum(psf_spline(x, np.ones(x.shape)*col, grid=False), 0) # Enforce positivity
-            frame[integration, i0:i1, col] /= np.sum(frame[integration, i0:i1, col])                        # Enforce normalisation
-    return frame, psf_spline
+                x = np.arange(i0,i1) - self.ord_pos[integration, col]
+                psf_frame[integration, i0:i1, col] = np.maximum(psf_spline(x, np.ones(x.shape)*col, grid=False), 0) # Enforce positivity
+                psf_frame[integration, i0:i1, col] /= np.sum(psf_frame[integration, i0:i1, col])                        # Enforce normalisation
+        return psf_frame, psf_spline
 
-def psf_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
+def optimal_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
     """Use derived PSF frame (the psf sampled on the image) to extract the spectrum.
 
     This function fits the derived PSF frame to the actual data to extract the
@@ -423,7 +421,7 @@ def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, **kwargs
         print('Iter {:d} / {:d}: {:.5f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_sorted[:,0])))
     return psf_spline, mask
 
-def fit_spline_bivariate(pixel_array, oversample=1, ncol=10, clip=5, niters=3, **kwargs):
+def fit_spline_bivariate(pixel_array, oversample=1, knot_col=10, clip=5, niters=3, **kwargs):
     """Fit a Bivariate spline to pixel arrays
     
     Given a normalized pixel array (in the same form as output from 
@@ -440,7 +438,7 @@ def fit_spline_bivariate(pixel_array, oversample=1, ncol=10, clip=5, niters=3, *
         of knots is equal to total pixel numbers in aperture (corresponds to `oversample`=1).
         If `oversample` is greater than 1, it will put oversamples*total pixel number knots
         in pixel coordinate direction.
-    ncol : int, optional
+    knot_col : int, optional
         Number of knots in column indices direction.
         Default is 10.
     clip : int, optinal
@@ -463,7 +461,7 @@ def fit_spline_bivariate(pixel_array, oversample=1, ncol=10, clip=5, niters=3, *
     y1k, y2k = np.min(pixel_array[:,3]) + 1/oversample, np.max(pixel_array[:,3]) - 1/oversample
 
     xknots = np.linspace(x1k, x2k, int(x2k-x1k)*int(oversample))
-    yknots = np.linspace(y1k, y2k, int(ncol))
+    yknots = np.linspace(y1k, y2k, int(knot_col))
 
     # Mask for bad pixels
     mask_bp = np.asarray(pixel_array[:,4], dtype=bool)
