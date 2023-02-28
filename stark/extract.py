@@ -13,24 +13,22 @@ import time
 def aperture_extract(frame, variance, ord_pos, ap_rad, uniform = False):
     """ Simple aperture extraction of the spectrum
 
-    Given the 2D `frame` of the data, and its `variance`, this function
-    extracts spectrum by simply adding up values of pixels along slit.
+    Given the 2D `frame` of the data, and its `variance`, this function extracts spectrum by simply
+    adding up values of pixels along slit.
 
     Parameters
     ----------
     frame : ndarray
         2D data frame from which the spectrum is to be extracted
     variance : ndarray
-        The noise image of the same format as frame, specifying
-        the variance of each pixel.
+        The noise image of the same format as frame, specifying the variance of each pixel.
     ord_pos : ndarray
         Array defining position of the trace
     ap_rad : float
         Radius of the aperture around the order position
     uniform : bool, optional
         Boolean on whether the slit is uniformally lit or not.
-        If not then it will simply sum up counts in the aperture
-        else average the counts and multiply by slit-length.
+        If not then it will simply sum up counts in the aperture, else average the counts and multiply by slit-length.
         Default is False.
 
     Returns
@@ -113,23 +111,21 @@ class SingleOrderPSF(object):
         # Data
         self.nints = frame.shape[0]
         self.ncols = frame.shape[2]
+
+        # Creating pixel list
+        self.flux_coo()
+        # Generating normalized pixel array
+        self.norm_flux_coo()
     
     def flux_coo(self):
         """ To produce pixel list with source coordinates
         
-        Given a 3D data cube, this function gives array with coordinates (distace from order position), 
-        their flux and variances. This information is to be used when producing PSFs.
-        This function works for single order and all columns.
+        Given a 3D data cube, this function produces an array, stored as `self.pix_array`, with pixel coordinates (distace from order position), 
+        their flux, variances, column number and mask. Also generates a 3D array (`self.col_array_pos`) of size [nints, ncols, 2] to store positions
+        of pixels in `self.pix_array`. E.g., if the data in `self.pix_array` from columns 100 to 300 are desired, those corresponds to indices
+        `self.col_array_pos[i,100,0] to `self.col_array_pos[i,300,0]` for i-th integration in the `self.pix_array`. 
+        This information is to be used when producing PSFs. This function works for single order spectrum.
 
-        Returns
-        -------
-        pix_array : ndarray
-            Array with columns coordinate (in form of distance from ordercpositions), flux, variance, column number and mask. 
-            Approx. of size [2*ap_rad*ncols*nints, 5]
-        col_array_pos : ndarray
-            Array with column's index in pix_array along with aperture size.cThis is used to be able to pick data from desired
-            columns. E.g., if the data in pix_array from columns 100 to 300 are desired, those correspondccto indices 
-            col_array_pos[i,100,0] to col_array_pos[i,300,0] for i-th integration in the pix_array.
         """
         
         self.col_array_pos = np.zeros((self.nints, self.ncols, 2), dtype=int) # position and length in array
@@ -172,17 +168,11 @@ class SingleOrderPSF(object):
     def norm_flux_coo(self):
         """ Normalises the fluxes by summing up pixel values.
         
-        Given the pixel array and col_array_pos from `flux_coo` function, this function provides the normalized fluxes.
+        Given the `self.pixel array` and `self.col_array_pos` from `self.flux_coo` function, this function provides the normalized fluxes.
         If no normalisation spectrum is provided, the pixel sum is used.
         
-        Returns
-        -------
-        norm_array : ndarray
-            Array with pixel coordinates, normalized flux, normalized variance
-            and column indices.
         """
-        # Creating pixel list
-        self.flux_coo()
+        
         # Initializing an array for normalized pixel list
         self.norm_array = self.pix_array.copy()
         
@@ -202,30 +192,22 @@ class SingleOrderPSF(object):
     def univariate_psf_frame(self, **kwargs):
         """To generate PSF frame by fitting univariate spline for the whole dataset
         
-        Given frame, order position, aperture radius and normalized pixel array,
-        this function derives a single PSF for whole data cube and use it to 
+        Given a `stark.SingleOrderPSF` object, this function derives a single PSF for whole data cube and use it to 
         generate pixel-sampled PSFs for each column.
 
         Parameters
         ----------
-        data : ndarray
-            3D array containing data, [nints, nrows, ncols]
-        order_pos : ndarray
-            2D array, with shape [nints, ncols] contaning pixel positions of order
-        ap_rad : float
-            Radius of the aperture to consider
-        pix_array : ndarray
-            Normalized pixel positions, as computed from `norm_flux_coo`.
         **kwargs :
             Additional keywords provided to `fit_spline_univariate` function and to LSQUnivariateSpline
         
         Returns
         -------
-        frame : ndarray
+        psf_frame : ndarray
             Data cube containing pixel-sampled PSF for each column
+        psf_spline : `scipy.interpolate.LSQUnivariateSpline`
+            Fitted spline object
         """
-        # Generating normalized pixel array
-        self.norm_flux_coo()
+        
         psf_frame = np.copy(self.frame)
 
         # To sort array
@@ -252,27 +234,20 @@ class SingleOrderPSF(object):
     def bivariate_psf_frame(self, **kwargs):
         """To generate PSF frame by fitting a bivariate spline to the whole dataset
         
-        Given frame, order position, aperture radius and normalized pixel array,
-        this function derives a single 2D PSF for whole data cube and use it to 
+        Given a `stark.SingleOrderPSF` object, this function derives a single 2D PSF for whole data cube and use it to 
         generate pixel-sampled PSFs for each column.
 
         Parameters
         ----------
-        data : ndarray
-            3D array containing data, [nints, nrows, ncols]
-        order_pos : ndarray
-            2D array, with shape [nints, ncols] contaning pixel positions of order
-        ap_rad : float
-            Radius of the aperture to consider
-        pix_array : ndarray
-            Normalized pixel positions, as computed from `norm_flux_coo`.
         **kwargs :
             Additional keywords provided to `fit_spline_bivariate` function and to LSQBivariateSpline
         
         Returns
         -------
-        frame : ndarray
+        psf_frame : ndarray
             Data cube containing pixel-sampled PSF for each column
+        psf_spline : `scipy.interpolate.LSQUnivariateSpline`
+            Fitted spline object
         """
         # Generating normalized pixel array
         self.norm_flux_coo()
