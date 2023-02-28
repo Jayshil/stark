@@ -249,8 +249,7 @@ class SingleOrderPSF(object):
         psf_spline : `scipy.interpolate.LSQUnivariateSpline`
             Fitted spline object
         """
-        # Generating normalized pixel array
-        self.norm_flux_coo()
+        
         psf_frame = np.copy(self.frame)
 
         # To sort array
