@@ -10,7 +10,7 @@ Installation
 to download the source code and then,    
 
 .. code-block:: bash
-    
+
     python setup.py install
 
-to install ::code::`stark` after switching the directory.
+to install :code:`stark` after switching the directory.
