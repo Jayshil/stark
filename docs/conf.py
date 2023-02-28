@@ -17,7 +17,7 @@ author = 'Jayshil A. Patel, Alexis Brandeker, Gayathri Viswanath, Maria Cavalliu
 try:
     from stark import __version__
 except:
-    __version__ = '0.1.0'      # Will need to change this later, when make it pip installable
+    __version__ = '0.2.0'      # Will need to change this later, when make it pip installable
 
 release = __version__
 

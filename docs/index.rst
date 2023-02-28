@@ -12,7 +12,6 @@ The current version of the original code is developed with keeping in mind analy
 
    user/intro
    user/install
-   user/api
 
 .. toctree::
    :maxdepth: 2
