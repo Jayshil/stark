@@ -8,14 +8,14 @@ The current version of the original code is developed with keeping in mind analy
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide:
+   :caption: User Guide
 
    user/intro
    user/install
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide:
+   :caption: Tutorials
 
    tutorials/tutorial1
 
