@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed the name of `psf_extract` to `optimal_extract` to avoid confusion.
 - Updated docstrings
 
+### Added
+
+- Functions to trace the spectrum in the data in `reduce.py`.
+
 ## [0.2.0] - 2023-02-24
 
 ### Added
