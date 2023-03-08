@@ -8,6 +8,7 @@ from skimage import restoration
 from scipy.optimize import minimize
 from scipy.interpolate import LSQUnivariateSpline
 from tqdm import tqdm
+from scipy.signal import medfilt2d
 
 def col_by_col_bkg_sub(frame, mask):
     """To perform column by column background subtraction
@@ -75,7 +76,7 @@ def gaussian(x, amp=1., mu=0., sig=1., offset=0.):
     exp = np.exp(-0.5 * ((x-mu)/sig)**2)
     return (amp*exp) + offset
 
-def trace_spectrum(frame, xstart, xend, kernel=None, radius=5, niters=100, **kwargs):
+def trace_spectrum(frame, xstart, xend, ystart, yend, kernel=None, radius=5, niters=100, **kwargs):
     """To find the trace of the spectrum in single frame
     
     This function finds the trace of the spectrum in single frame using deconvolution and centering.
@@ -88,6 +89,10 @@ def trace_spectrum(frame, xstart, xend, kernel=None, radius=5, niters=100, **kwa
         Start column number of the trace
     xend : int
         End column number of the trace
+    ystart : int
+        Start row number for trace search
+    yend : int
+        End row number for trace search
     kernel : Callable function
         Callable function to define kernel
         Default is Gaussian function
@@ -126,10 +131,10 @@ def trace_spectrum(frame, xstart, xend, kernel=None, radius=5, niters=100, **kwa
     deconv = restoration.richardson_lucy(data1, kern2D, num_iter=niters, clip=False)
     # Compute centre of flux
     row = np.arange(deconv.shape[0])
-    centre = np.sum(deconv[:,:]*row[:, None], axis=0) / np.maximum(np.sum(deconv[:,:], axis=0), 1)
+    centre = np.sum(deconv[ystart:yend,:]*row[ystart:yend, None], axis=0) / np.maximum(np.sum(deconv[ystart:yend,:], axis=0), 1)
     return np.arange(xstart, xend, 1, dtype=int), centre[xstart:xend], kern2D, deconv
 
-def trace_spectra(frames, xstart, xend, nknots=8, **kwargs):
+def trace_spectra(frames, xstart, xend, ystart, yend, niter=3, clip=3, nknots=8, **kwargs):
     """Tracing spectra for multiple frames
     
     This function compute trace for all frames in input data using `trace_spectrum` function, and then fits a
@@ -144,6 +149,16 @@ def trace_spectra(frames, xstart, xend, nknots=8, **kwargs):
         Start column number of the trace
     xend : int
         End column number of the trace
+    ystart : int
+        Start row number for trace search
+    yend : int
+        End row number for trace search
+    niter : int
+        Number of iterations for various fitting procedure.
+        Default is 3.
+    clip : int
+        Number of sigma clipping to mask points
+        Default is 3.
     nknots : int
         Number of knots to be used in spline fitting
     **kwargs :
@@ -159,22 +174,33 @@ def trace_spectra(frames, xstart, xend, nknots=8, **kwargs):
     # First find trace for each frame
     xpos, ycen2D = np.zeros(xend-xstart), np.zeros((frames.shape[0], xend-xstart))
     for i in tqdm(range(ycen2D.shape[0])):
-        xpos, ycen2D[i,:], _, _ = trace_spectrum(frame=frames[i,:,:], xstart=xstart, xend=xend, **kwargs)
+        xpos, ycen2D[i,:], _, _ = trace_spectrum(frame=frames[i,:,:], xstart=xstart, xend=xend, ystart=ystart, yend=yend, **kwargs)
     
+    # Median of the fitted spectrum
+    medfl = medfilt2d(ycen2D, kernel_size=15)
+    med_trace = np.median(medfl, axis=0)
+
     # Fitting spline to each of them
     knots = np.arange(xpos[0], xpos[-1], (xpos[-1] - xpos[0]) / np.double(nknots))[1:]
     y_interpolated = np.zeros(ycen2D.shape)
     ## Iterate through all integrations:
     for i in range(ycen2D.shape[0]):
-        spl = LSQUnivariateSpline(x=xpos, y=ycen2D[i,:], t=knots)
+        msk1 = np.ones(ycen2D.shape[1], dtype=bool)
+        for _ in range(niter):
+            if _ == 0:
+                diff1 = ycen2D[i,:] - med_trace
+            else:
+                diff1 = ycen2D[i,:] - spl(xpos)
+            limit = np.median(diff1[msk1]) + (clip*np.std(diff1[msk1]))
+            msk1 = msk1 * (np.abs(diff1) < limit)
+            spl = LSQUnivariateSpline(x=xpos[msk1], y=ycen2D[i,msk1], t=knots)
         y_interpolated[i,:] = spl(xpos)
     med_y_spline = np.nanmedian(y_interpolated, axis=0)   # Median fitted spline
     
     # Defining weights according to their difference w.r.t. median fitted spline
     weights = np.zeros(ycen2D.shape)
     for i in range(ycen2D.shape[0]):
-        diff = ycen2D[i,:] - med_y_spline
-        abs_diff = np.abs(diff)
+        abs_diff = np.abs(ycen2D[i,:] - med_y_spline)
         diff_gr = np.where(abs_diff > 1.)[0]
         abs_diff[diff_gr] = 1.
         weights[i,:] = 1 - abs_diff
@@ -183,7 +209,15 @@ def trace_spectra(frames, xstart, xend, nknots=8, **kwargs):
     y_interpolated_wt = np.zeros(ycen2D.shape)
     ## Iterate through all integrations:
     for i in range(ycen2D.shape[0]):
-        spl = LSQUnivariateSpline(x=xpos, y=ycen2D[i,:], t=knots, w=weights[i,:])
+        msk2 = np.ones(ycen2D.shape[1], dtype=bool)
+        for _ in range(niter):
+            if _ == 0:
+                diff2 = ycen2D[i,:] - med_y_spline
+            else:
+                diff2 = ycen2D[i,:] - spl(xpos)
+            limit = np.median(diff2[msk2]) + (clip*np.std(diff2))
+            msk2 = msk2 * (np.abs(diff1) < limit)
+            spl = LSQUnivariateSpline(x=xpos[msk2], y=ycen2D[i,msk2], t=knots, w=weights[i,msk2])
         y_interpolated_wt[i,:] = spl(xpos)
     # Master median spline (which defines the shape of the spectrum)
     master_med_spline = np.nanmedian(y_interpolated_wt, axis=0)
@@ -191,16 +225,23 @@ def trace_spectra(frames, xstart, xend, nknots=8, **kwargs):
     # Fitting for the jitter to this median fitted spline
     y_fitted_trace = np.zeros(ycen2D.shape)
     for i in range(ycen2D.shape[0]):
-        def residuals_all(xx):
-            model = master_med_spline + xx
-            data = ycen2D[i,:]
-            resids = np.sum(((data-model)*weights[i,:])**2)
-            return resids
-        soln_i_int = minimize(residuals_all, x0=0.01, method='BFGS')
-        modelled_jitter = soln_i_int.x[0]
-        if np.abs(modelled_jitter) > 0.5:
-            model_y_inter = master_med_spline
-        else:
-            model_y_inter = master_med_spline + soln_i_int.x[0]
+        msk3 = np.ones(ycen2D.shape[1], dtype=bool)
+        for _ in range(3):
+            if _ == 0:
+                diff12 = ycen2D[i,:] - master_med_spline
+            else:
+                diff12 = ycen2D[i,:] - model_y_inter
+            limit = np.median(diff12[msk3]) + (clip*np.std(diff12[msk3]))
+            msk3 = msk3 * (np.abs(diff12) < limit)
+            def residuals_all(xx):
+                model = master_med_spline[msk3] + xx
+                data = ycen2D[i,msk3]
+                resids = np.sum(((data-model)*weights[i,msk3])**2)
+                return resids
+            soln_i_int = minimize(residuals_all, x0=0.01, method='BFGS')
+            if np.abs(soln_i_int.x[0]) > 0.5:
+                model_y_inter = master_med_spline
+            else:
+                model_y_inter = master_med_spline + soln_i_int.x[0]
         y_fitted_trace[i,:] = model_y_inter
     return xpos, y_fitted_trace
