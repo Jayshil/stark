@@ -76,7 +76,22 @@ def gaussian(x, amp=1., mu=0., sig=1., offset=0.):
     exp = np.exp(-0.5 * ((x-mu)/sig)**2)
     return (amp*exp) + offset
 
-def trace_spectrum(frame, xstart, xend, ystart, yend, kernel=None, radius=5, niters=100, **kwargs):
+def make_it_symmetric(arr):
+    """Making array symmetric such that arr = np.flip(arr)"""
+    mid_point = int(len(arr)/2)
+    xargmax = np.argmax(arr)
+    shift = mid_point - xargmax
+    arr1 = np.roll(arr, shift)
+    if shift < 0:
+        arr2 = arr1[-1*shift:shift]
+    elif shift == 0:
+        arr2 = arr1
+    else:
+        arr2 = arr1[shift:-1*shift]
+    arr3 = (arr2 + np.flip(arr2))/np.max(arr2 + np.flip(arr2))
+    return arr3
+
+def trace_spectrum(frame, xstart, xend, ystart, yend, kernel=None, radius=10, num_iter=100, **kwargs):
     """To find the trace of the spectrum in single frame
     
     This function finds the trace of the spectrum in single frame using deconvolution and centering.
@@ -99,7 +114,7 @@ def trace_spectrum(frame, xstart, xend, ystart, yend, kernel=None, radius=5, nit
     radius : int
         Radius of the aperture while defining the kernel
         Default is 5.
-    niters : int
+    num_iter : int
         Number of iteration for Richardson Lucy deconvolution
     **kwargs :
         Additional keywords provided to the `kernel` function
@@ -124,11 +139,12 @@ def trace_spectrum(frame, xstart, xend, ystart, yend, kernel=None, radius=5, nit
     if kernel is None:
         kern = gaussian(x=x1, **kwargs)
     else:
-        kern = kernel(x=x1, **kwargs)
+        kern1 = kernel(x=x1, **kwargs)
+        kern = make_it_symmetric(kern1)
     ## Normalizing it
     kern = kern/np.max(kern)
     kern2D = np.reshape(kern, (len(kern), 1))
-    deconv = restoration.richardson_lucy(data1, kern2D, num_iter=niters, clip=False)
+    deconv = restoration.richardson_lucy(data1, kern2D, num_iter=num_iter, clip=False)
     # Compute centre of flux
     row = np.arange(deconv.shape[0])
     centre = np.sum(deconv[ystart:yend,:]*row[ystart:yend, None], axis=0) / np.maximum(np.sum(deconv[ystart:yend,:], axis=0), 1)
