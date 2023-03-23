@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created a class for extracting psf frame for single order spectral data. This clss combines `flux_coo`, `norm_flux_coo`, `univariate_psf_frame` and `bivariate_psf_frame` functions.
 - Changed the name of `psf_extract` to `optimal_extract` to avoid confusion.
 - Updated docstrings
+- Removed "oversample" in y (column) direction.
 
 ### Added
 

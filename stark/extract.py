@@ -432,7 +432,7 @@ def fit_spline_bivariate(pixel_array, oversample=1, knot_col=10, clip=5, niters=
         Array containing location of masked points.
     """
     x1k, x2k = np.min(pixel_array[:,0]) + 1/oversample, np.max(pixel_array[:,0]) - 1/oversample
-    y1k, y2k = np.min(pixel_array[:,3]) + 1/oversample, np.max(pixel_array[:,3]) - 1/oversample
+    y1k, y2k = np.min(pixel_array[:,3]) + 1, np.max(pixel_array[:,3]) - 1
 
     xknots = np.linspace(x1k, x2k, int(x2k-x1k)*int(oversample))
     yknots = np.linspace(y1k, y2k, int(knot_col))
