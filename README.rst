@@ -3,13 +3,13 @@ Spectral exTraction And Reduction Kit
 
 Spectral exTraction And Reduction Kit, or :code:`stark`, is written with the aim to provide a general purpose tool for optimal extraction of spectrum from the raw (or, reduced) data with special attention towards JWST data.
 The concept of the code was originally developed by Alexis Brandeker and initial versions are implemented by Marcus Karlsson and Erwan Taillanter.
-Later, the code was adapted to process UVES data by Gayathri Viswanath and Maria Cavallius.
+Later, the code was adapted to process UVES data by Gayathri Viswanath and Maria Cavallius with valuable help from Marcus Janson.
 The current version of the original code is developed with keeping in mind analysis of JWST (NIRCam) data.
 
 License
 -------
 
-This project is Copyright (c) Jayshil A. Patel, Alexis Brandeker, Gayathri Viswanath and Maria Cavallius and licensed under
+This project is Copyright (c) Jayshil A. Patel, Alexis Brandeker, Gayathri Viswanath, Maria Cavallius and Marcus Janson and licensed under
 the terms of the Apache Software License 2.0 license. This package is based upon
 the `Openastronomy packaging guide <https://github.com/OpenAstronomy/packaging-guide>`_
 which is licensed under the BSD 3-clause licence. See the licenses folder for
