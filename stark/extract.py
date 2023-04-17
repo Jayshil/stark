@@ -9,6 +9,7 @@ from multiprocessing import Pool
 from scipy.interpolate import LSQUnivariateSpline, LSQBivariateSpline
 import warnings
 import time
+from tqdm import tqdm
 
 def aperture_extract(frame, variance, ord_pos, ap_rad, uniform = False):
     """ Simple aperture extraction of the spectrum
@@ -230,6 +231,56 @@ class SingleOrderPSF(object):
                 psf_frame[integration, i0:i1, col] = np.maximum(psf_spline(x), 0) # Enforce positivity
                 psf_frame[integration, i0:i1, col] /= np.sum(psf_frame[integration, i0:i1, col]) # Enforce normalisation (why commented)
         return psf_frame, psf_spline
+    
+    def univariate_multi_psf_frame(self, colrad = 100, **kwargs):
+        """Derives one PSF spline for each column, and
+        uses it to generate the pixel-sampled PSF for each column.
+        """
+
+        nretries = 4
+        curr_rad = colrad
+
+        psf_frame = np.copy(self.frame)
+        psf_spline_all = []
+        
+        for col in tqdm(range(self.ncols)):
+            for retry in range(nretries):
+                try:        
+                    col_start = int(round(col - curr_rad))
+                    col_end = int(round(col + curr_rad))
+                    if col_start < 0:
+                        col_start = 0
+                    if col_end >= self.ncols:
+                        col_end = self.ncols-1
+                    
+                    # Indices of the sub-array
+                    ind1 = np.where((self.norm_array[:,3]>=col_start)&(self.norm_array[:,3]<=col_end))
+                    sub_arr = self.norm_array[ind1[0],:]               # Desired sub-array
+                    sort_arr = sub_arr[sub_arr[:,0].argsort(),:]       # Sorted sub-array for 1d spline fitting
+                    psf_spline, mask = fit_spline_univariate(sort_arr, **kwargs)
+                    psf_spline_all.append(psf_spline)
+                except IndexError:
+                    curr_rad *= 2
+                    print('Retrying with colrad = {:d} columns'.format(curr_rad))
+                    continue
+                break
+            curr_rad = colrad
+
+            for integration in range(self.nints):
+                if self.ord_pos[integration, col] < 0 or self.ord_pos[integration, col] >= psf_frame.shape[1]:
+                    continue
+                i0 =  int(round(self.ord_pos[integration, col] - self.ap_rad))
+                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad))
+                if i0 < 0:
+                    i0 = 0
+                if i1 >= psf_frame.shape[1]:
+                    i1 = psf_frame.shape[1] - 1
+                
+                x = np.arange(i0,i1) - self.ord_pos[integration, col]
+                psf_frame[integration, i0:i1, col] = np.maximum(psf_spline(x), 0) # Enforce positivity
+                psf_frame[integration, i0:i1, col] /= np.sum(psf_frame[integration, i0:i1, col]) # Enforce normalisation
+
+        return psf_frame, psf_spline_all
 
     def bivariate_psf_frame(self, **kwargs):
         """To generate PSF frame by fitting a bivariate spline to the whole dataset
@@ -333,7 +384,7 @@ def optimal_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
         synth[i0:i1, col] = spec[col] * psf_frame[i0:i1, col]
     return spec, var, synth
 
-def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, **kwargs):
+def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, verbose=True, **kwargs):
     """Fit a Univariate spline to pixel arrays
     
     Given a normalized sorted pixel array (in the same form as output from 
@@ -356,6 +407,9 @@ def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, **kwargs
     niter : int, optional
         Number of iteration to perform
         Default is 3.
+    verbose : bool, optional
+        Boolean on whether to print details or not.
+        Default is True.
     **kwargs :
         Additional keywords provided to LSQUnivariateSpline
     
@@ -391,8 +445,9 @@ def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, **kwargs
                                  y=pixel_sorted[mask,1],
                                  t=t,
                                  w=weights[mask])
-
-        print('Iter {:d} / {:d}: {:.5f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_sorted[:,0])))
+        
+        if verbose:
+            print('Iter {:d} / {:d}: {:.5f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_sorted[:,0])))
     return psf_spline, mask
 
 def fit_spline_bivariate(pixel_array, oversample=1, knot_col=10, clip=5, niters=3, **kwargs):
