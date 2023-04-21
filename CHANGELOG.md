@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Function to produce PSF using multi-column 1d spline fitting in `SingelOrderPSF` class.
 - Functions to trace the spectrum in the data in `reduce.py`.
 
 ## [0.2.0] - 2023-02-24
