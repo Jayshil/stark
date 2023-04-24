@@ -233,8 +233,18 @@ class SingleOrderPSF(object):
         return psf_frame, psf_spline
     
     def univariate_multi_psf_frame(self, colrad = 100, **kwargs):
-        """Derives one PSF spline for each column, and
-        uses it to generate the pixel-sampled PSF for each column.
+        """ To generate PSF frame using fitting 1D-spline to a window of multiple columns around given column
+        
+        To derive one PSF spline for each column, and uses it to generate the pixel-sampled
+        PSF for each column.
+
+        Parameters
+        ----------
+        colrad : int
+            Radius of column window
+            Default is 100
+        **kwargs :
+            Additional keywords provided to `fit_spline_univariate` function and to LSQUniivariateSpline
         """
 
         nretries = 4
@@ -450,7 +460,7 @@ def fit_spline_univariate(pixel_sorted, oversample=1, clip=5, niters=3, verbose=
             print('Iter {:d} / {:d}: {:.5f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_sorted[:,0])))
     return psf_spline, mask
 
-def fit_spline_bivariate(pixel_array, oversample=1, knot_col=10, clip=5, niters=3, **kwargs):
+def fit_spline_bivariate(pixel_array, oversample=1, knot_col=10, clip=5, niters=3, verbose=True, **kwargs):
     """Fit a Bivariate spline to pixel arrays
     
     Given a normalized pixel array (in the same form as output from 
@@ -476,6 +486,9 @@ def fit_spline_bivariate(pixel_array, oversample=1, knot_col=10, clip=5, niters=
     niter : int, optional
         Number of iteration to perform
         Default is 3.
+    verbose : bool, optional
+        Boolean on whether to print details or not.
+        Default is True.
     **kwargs :
         Additional keywords provided to LSQBivariateSpline
     
@@ -513,6 +526,7 @@ def fit_spline_bivariate(pixel_array, oversample=1, knot_col=10, clip=5, niters=
             z=pixel_array[mask,1],\
             tx=xknots, ty=yknots,\
             w=weights[mask], **kwargs)
-
-        print('Iter {:d} / {:d}: {:.5f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_array[:,0])))
+        
+        if verbose:
+            print('Iter {:d} / {:d}: {:.5f} per cent masked.'.format(i+1, niters, 100 - 100*np.sum(mask)/len(pixel_array[:,0])))
     return psf_spline, mask
