@@ -48,7 +48,7 @@ def aperture_extract(frame, variance, ord_pos, ap_rad, uniform = False):
         if ord_pos[col] < 0 or ord_pos[col] >= frame.shape[0]:
             continue
         i0 = int(round(ord_pos[col] - ap_rad))
-        i1 = int(round(ord_pos[col] + ap_rad))
+        i1 = int(round(ord_pos[col] + ap_rad)) + 1
 
         if i0 < 0:
             i0 = 0
@@ -140,7 +140,7 @@ class SingleOrderPSF(object):
                 if self.ord_pos[integration, col] < 0 or self.ord_pos[integration, col] >= self.frame.shape[1]:
                     continue
                 i0 = int(round(self.ord_pos[integration, col] - self.ap_rad))
-                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad))
+                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad)) + 1
 
                 if i0 < 0:
                     i0 = 0
@@ -221,7 +221,7 @@ class SingleOrderPSF(object):
                 if self.ord_pos[integration, col] < 0 or self.ord_pos[integration, col] >= psf_frame.shape[1]:
                     continue
                 i0 =  int(round(self.ord_pos[integration, col] - self.ap_rad))
-                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad))
+                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad)) + 1
                 if i0 < 0:
                     i0 = 0
                 if i1 >= psf_frame.shape[1]:
@@ -280,7 +280,7 @@ class SingleOrderPSF(object):
                 if self.ord_pos[integration, col] < 0 or self.ord_pos[integration, col] >= psf_frame.shape[1]:
                     continue
                 i0 =  int(round(self.ord_pos[integration, col] - self.ap_rad))
-                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad))
+                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad)) + 1
                 if i0 < 0:
                     i0 = 0
                 if i1 >= psf_frame.shape[1]:
@@ -321,7 +321,7 @@ class SingleOrderPSF(object):
                 if self.ord_pos[integration, col] < 0 or self.ord_pos[integration, col] >= psf_frame.shape[1]:
                     continue
                 i0 =  int(round(self.ord_pos[integration, col] - self.ap_rad))
-                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad))
+                i1 = int(round(self.ord_pos[integration, col] + self.ap_rad)) + 1
                 if i0 < 0:
                     i0 = 0
                 if i1 >= psf_frame.shape[1]:
@@ -374,7 +374,7 @@ def optimal_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
         if ord_pos[col] < 0 or ord_pos[col] >= data.shape[0]:
             continue
         i0 =  int(round(ord_pos[col] - ap_rad))
-        i1 = int(round(ord_pos[col] + ap_rad))
+        i1 = int(round(ord_pos[col] + ap_rad)) + 1
 
         if i0 < 0:
             i0 = 0
