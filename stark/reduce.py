@@ -8,7 +8,13 @@ from skimage import restoration
 from scipy.optimize import minimize
 from scipy.interpolate import LSQUnivariateSpline
 from tqdm import tqdm
+import warnings
 from scipy.signal import medfilt2d
+try:
+    from photutils.background import Background2D, MedianBackground, MMMBackground
+    from astropy.stats import SigmaClip
+except:
+    print('`photutils` not installed!! Could not perforem 2D background subtraction.')
 
 def col_by_col_bkg_sub(frame, mask):
     """To perform column by column background subtraction
@@ -32,13 +38,18 @@ def col_by_col_bkg_sub(frame, mask):
     -------
     corrected_image : ndarray
         Background corrected image.
+    sub_bkg : ndarray
+        Array containing subtracted background from each column
     """
     corrected_image = np.ones(frame.shape)
+    sub_bkg = np.ones(frame.shape[1])
 
     for i in range(frame.shape[1]):
         idx = np.where(mask[:,i] == 1)
-        corrected_image[:, i] = frame[:,i] - np.nanmedian(frame[idx,i])
-    return corrected_image 
+        bkg1 = np.nanmedian(frame[idx,i])
+        corrected_image[:, i] = frame[:,i] - bkg1
+        sub_bkg[i] = bkg1
+    return corrected_image, sub_bkg 
 
 def row_by_row_bkg_sub(frame, mask):
     """To perform row by row background subtraction
@@ -62,13 +73,143 @@ def row_by_row_bkg_sub(frame, mask):
     -------
     corrected_image : ndarray
         Background corrected image.
+    sub_bkg : ndarray
+        Array containing subtracted background from each row
     """
     corrected_image = np.ones(frame.shape)
+    sub_bkg = np.ones(frame.shape[0])
 
     for i in range(frame.shape[0]):
         idx = np.where(mask[i,:] == 1)
-        corrected_image[i, :] = frame[i,:] - np.nanmedian(frame[i,idx])
-    return corrected_image
+        bkg1 = np.nanmedian(frame[i,idx])
+        corrected_image[i, :] = frame[i,:] - bkg1
+        sub_bkg[i] = bkg1
+    return corrected_image, sub_bkg
+
+def polynomial_bkg_cols(frame, mask, deg):
+    """To fit a polynomial background subtraction along columns
+    
+    Given a frame, mask and degree of polynomial, this function fits a polynomial
+    with specified degree to the unmasked background along columns.
+    
+    Parameters
+    ----------
+    frame : ndarray
+        2D data frame of the data with shape [nrows, ncols]
+    mask : ndarray
+        Mask array with the same size as `frame`. Only points with 1 will be
+        considered to estimate background.
+    deg : int
+        Degree of the polynomial
+    
+    Returns
+    -------
+    corrected_image : ndarray
+        Background corrected image
+    subtracted_bkg : ndarray
+        Subtracted background, same shape as `corrected_image`"""
+    
+    corrected_image = np.copy(frame)
+    subtracted_bkg = np.ones(frame.shape)
+
+    for i in range(frame.shape[1]):
+        try:
+            idx_ok = np.where((mask[:,i] == 1)&(~np.isnan(frame[:,i])))[0]
+            coeffs = np.polyfit(x=idx_ok, y=frame[idx_ok,i], deg=deg)
+            poly = np.poly1d(coeffs)
+            bkg1 = poly(np.arange(frame.shape[0]))
+        except:
+            bkg1 = np.zeros(frame.shape[0])
+        # Subtracting background
+        corrected_image[:,i] = corrected_image[:,i] - bkg1
+        subtracted_bkg[:,i] = bkg1
+    return corrected_image, subtracted_bkg
+
+def polynomial_bkg_rows(frame, mask, deg):
+    """To fit a polynomial background subtraction along rows
+    
+    Given a frame, mask and degree of polynomial, this function fits a polynomial
+    with specified degree to the unmasked background along rows.
+
+    
+    Parameters
+    ----------
+    frame : ndarray
+        2D data frame of the data with shape [nrows, ncols]
+    mask : ndarray
+        Mask array with the same size as `frame`. Only points with 1 will be
+        considered to estimate background.
+    deg : int
+        Degree of the polynomial
+    
+    Returns
+    -------
+    corrected_image : ndarray
+        Background corrected image
+    subtracted_bkg : ndarray
+        Subtracted background, same shape as `corrected_image`"""
+    
+    corrected_image = np.copy(frame)
+    subtracted_bkg = np.ones(frame.shape)
+
+    for i in range(frame.shape[0]):
+        try:
+            idx_ok = np.where((mask[i,:] == 1)&(~np.isnan(frame[i,:])))[0]
+            coeffs = np.polyfit(x=idx_ok, y=frame[i,idx_ok], deg=deg)
+            poly = np.poly1d(coeffs)
+            bkg1 = poly(np.arange(frame.shape[1]))
+        except:
+            bkg1 = np.zeros(frame.shape[1])
+        # Subtracting background
+        corrected_image[i,:] = corrected_image[i,:] - bkg1
+        subtracted_bkg[i,:] = bkg1
+    return corrected_image, subtracted_bkg
+
+def background2d(frame, mask, clip=5, bkg_estimator='median', box_size=(10,2)):
+    """To perform 2D background subtraction
+
+    Given the frame and mask this function will use `photutils` to estimate a 2D 
+    background of the given image. Subsequently, it will subtract this background from the data.
+
+    Parameters
+    ----------
+    frame : ndarray
+        2D data frame of the data with shape [nrows, ncols]
+    mask : ndarray
+        Mask array with the same size as `frame`. Only points with 1 will be
+        considered to estimate background.
+    clip : int
+        sigma clipping value
+    bkg_estimator : str, either 'median' or 'mmm'
+        See, bkg_estimator keyword in photutils.background.Background2D class for details
+        Default is median
+    box_size : (ny,nx)
+        See, box_size keyword in photutils.background.Background2D class for details
+        Default is (10,2)
+    
+    Returns
+    -------
+    corrected_image : ndarray
+        Background corrected image
+    bkg : ndarray
+        Subtracted background"""
+
+    data = np.copy(frame)
+    mask2 = np.zeros(mask.shape, dtype=bool)
+    # Because photutils.background.Background2D masks all points with True 
+    # (not including them in computation, while in our masking scheme 1s are used in computations)
+    mask2[mask == 0.] = True
+    if bkg_estimator == 'median':
+        bkg_est = MedianBackground()
+    elif bkg_estimator == 'mmm':
+        bkg_est = MMMBackground()
+    else:
+        raise Exception('Value of bkg_estimator can either be median or mmm.')
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', Warning)
+        bkg = Background2D(data, box_size, mask=mask2, filter_size=(1,1), sigma_clip=SigmaClip(clip),\
+                        bkg_estimator=bkg_est, fill_value=0.)
+    return data - bkg.background, bkg.background
 
 def gaussian(x, amp=1., mu=0., sig=1., offset=0.):
     """Gaussian function
