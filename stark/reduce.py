@@ -10,9 +10,9 @@ from scipy.interpolate import LSQUnivariateSpline
 from tqdm import tqdm
 import warnings
 from scipy.signal import medfilt2d
+from astropy.stats import SigmaClip, mad_std
 try:
     from photutils.background import Background2D, MedianBackground, MMMBackground
-    from astropy.stats import SigmaClip
 except:
     print('`photutils` not installed!! Could not perforem 2D background subtraction.')
 
@@ -86,7 +86,7 @@ def row_by_row_bkg_sub(frame, mask):
         sub_bkg[i] = bkg1
     return corrected_image, sub_bkg
 
-def polynomial_bkg_cols(frame, mask, deg):
+def polynomial_bkg_cols(frame, mask, deg, sigma=5):
     """To fit a polynomial background subtraction along columns
     
     Given a frame, mask and degree of polynomial, this function fits a polynomial
@@ -101,6 +101,9 @@ def polynomial_bkg_cols(frame, mask, deg):
         considered to estimate background.
     deg : int
         Degree of the polynomial
+    sigma : int
+        sigma clipping threshold for polynomial fitting
+        Default is 5, use None in case of no sigma clipping
     
     Returns
     -------
@@ -117,6 +120,13 @@ def polynomial_bkg_cols(frame, mask, deg):
             idx_ok = np.where((mask[:,i] == 1)&(~np.isnan(frame[:,i])))[0]
             coeffs = np.polyfit(x=idx_ok, y=frame[idx_ok,i], deg=deg)
             poly = np.poly1d(coeffs)
+            # Sigma clipping
+            if sigma is not None:
+                resids = frame[:,i] - poly(np.arange(frame.shape[0]))
+                sigs = resids/mad_std(resids[idx_ok])
+                idx_ok1 = idx_ok[sigs[idx_ok] < sigma]
+                coeffs = np.polyfit(x=idx_ok1, y=frame[idx_ok1,i], deg=deg)
+                poly = np.poly1d(coeffs)
             bkg1 = poly(np.arange(frame.shape[0]))
         except:
             bkg1 = np.zeros(frame.shape[0])
@@ -125,7 +135,7 @@ def polynomial_bkg_cols(frame, mask, deg):
         subtracted_bkg[:,i] = bkg1
     return corrected_image, subtracted_bkg
 
-def polynomial_bkg_rows(frame, mask, deg):
+def polynomial_bkg_rows(frame, mask, deg, sigma=5):
     """To fit a polynomial background subtraction along rows
     
     Given a frame, mask and degree of polynomial, this function fits a polynomial
@@ -141,6 +151,9 @@ def polynomial_bkg_rows(frame, mask, deg):
         considered to estimate background.
     deg : int
         Degree of the polynomial
+    sigma : int
+        sigma clipping threshold for polynomial fitting
+        Default is 5, use None in case of no sigma clipping
     
     Returns
     -------
@@ -157,7 +170,14 @@ def polynomial_bkg_rows(frame, mask, deg):
             idx_ok = np.where((mask[i,:] == 1)&(~np.isnan(frame[i,:])))[0]
             coeffs = np.polyfit(x=idx_ok, y=frame[i,idx_ok], deg=deg)
             poly = np.poly1d(coeffs)
-            bkg1 = poly(np.arange(frame.shape[1]))
+            # Sigma clipping
+            if sigma is not None:
+                resids = frame[i,:] - poly(np.arange(frame.shape[1]))
+                sigs = resids/mad_std(resids[idx_ok])
+                idx_ok1 = idx_ok[sigs[idx_ok] < sigma]
+                coeffs = np.polyfit(x=idx_ok1, y=frame[idx_ok1,i], deg=deg)
+                poly = np.poly1d(coeffs)
+            bkg1 = poly(np.arange(frame.shape[0]))
         except:
             bkg1 = np.zeros(frame.shape[1])
         # Subtracting background
