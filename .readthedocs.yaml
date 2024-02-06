@@ -6,7 +6,7 @@ version: 2
 
 # Set the OS, Python version and other tools you might need
 build:
-  os: "macOS-10.16"
+  os: macOS
   tools:
     python: "3.8"
     # You can also specify other tool versions:
