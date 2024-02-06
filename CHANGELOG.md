@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Row-by-row and column-by-column background subtraction function now also return the subtracted background.
+
+### Added
+
+- Functions to perform polynomial background subtraction along rows and columns.
+- Function to perform a 2D background subtraction.
+
 ## [0.3.0]
 
 ### Changed
