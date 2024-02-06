@@ -6,7 +6,8 @@
 version: 2
 
 # Set the version of Python and other tools you might need
-#build:
+build:
+  image: latest
 #  tools:
 #    python: "3.9"
     # You can also specify other tool versions:
@@ -15,8 +16,8 @@ version: 2
     # golang: "1.19"
 
 # Build documentation in the docs/ directory with Sphinx
-sphinx:
-   configuration: docs/conf.py
+#sphinx:
+#  configuration: docs/conf.py
 
 # If using Sphinx, optionally build your docs in additional formats such as PDF
 # formats:
@@ -24,6 +25,12 @@ sphinx:
 
 # Optionally declare the Python requirements required to build your docs
 python:
-   version: 3.8
-   install:
-   - requirements: docs/requirements.txt
+  version: 3.8
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
+        - all
+
+formats: []
