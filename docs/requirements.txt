@@ -2,6 +2,6 @@ numpy
 astropy
 scipy
 tqdm
-skimage
+scikit-image
 sphinx==5.0.2
 sphinx-automodapi
