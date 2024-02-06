@@ -1,5 +1,7 @@
 numpy
 astropy
 scipy
+tqdm
+skimage
 sphinx==5.0.2
 sphinx-automodapi
