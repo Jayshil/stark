@@ -33,5 +33,5 @@ Dependencies
 
 :code:`stark` has some very basic dependencies on :code:`numpy`, :code:`scipy` and :code:`astropy`, 
 which should already be installed if you are using an Anaconda installation. Furthermore, :code:`stark` 
-uses :code:`photutils<https://photutils.readthedocs.io/en/stable/>_` (which is an optional dependency) 
+uses :code:`photutils <https://photutils.readthedocs.io/en/stable/>_` (which is an optional dependency) 
 package to estimate 2D background. Not installing :code:`photutils` will mute this ability of :code:`stark`.
