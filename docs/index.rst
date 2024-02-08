@@ -15,7 +15,7 @@ The current version of the original code is developed with keeping in mind analy
    user/api
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Tutorials
 
    tutorials/tutorial1
