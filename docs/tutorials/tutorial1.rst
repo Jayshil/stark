@@ -1,11 +1,12 @@
 Spectral extraction from a singe order transit timeseries data
 ==========
 
-In the present notebook, we will extract spectra from a single order transit timeseries data. We will use WASP-39 transit timeseries data obtained with NIRCam/JWST for Transiting Exoplanet Community Early Release Science (ERS) program. All data products can be found on the `MAST portal <https://mast.stsci.edu/portal/Mashup/Clients/Mast/Portal.html>`: this contains raw uncalibrated data (files with :code:`uncal.fits` extension), calibrated data (:code:`rateints.fits` and :code:`calints.fits`) and even spectrum timeseries data (:code:`x1dints.fits`). Here we will use :code:`rateints.fits` files to extract spectrum (see, the documentation of the `jwst <https://jwst-pipeline.readthedocs.io/en/latest/index.html>` pipeline to know more). We downloaded all files and put them in the same directory as this notebook.
+In the present notebook, we will extract spectra from a single order transit timeseries data. We will use WASP-39 transit timeseries data obtained with NIRCam/JWST for Transiting Exoplanet Community Early Release Science (ERS) program. All data products can be found on the `MAST portal <https://mast.stsci.edu/portal/Mashup/Clients/Mast/Portal.html>`_: this contains raw uncalibrated data (files with :code:`uncal.fits` extension), calibrated data (:code:`rateints.fits` and :code:`calints.fits`) and even spectrum timeseries data (:code:`x1dints.fits`). Here we will use :code:`rateints.fits` files to extract spectrum (see, the documentation of the `jwst <https://jwst-pipeline.readthedocs.io/en/latest/index.html>`_ pipeline to know more). We downloaded all files and put them in the same directory as this notebook.
 
 We first need to "correct" this data for NaN values, 0s and cosmic rays, which will be our first task. We can then perform a background subtraction. Finally we will extract a spectrum timeseries from this dataset.
 
 .. code-block:: python
+
     import numpy as np
     import matplotlib.pyplot as plt
     import os
@@ -25,6 +26,7 @@ Loading the dataset
 Since the data volume is too big, the data products are delievered in segments. For WASP-39 NIRCam data, there are 4 segments. We first load data in all 4 segments and put them in a single numpy array below:
 
 .. code-block:: python
+    
     visit = 'NRCLW'
 
     # Input and Output paths
