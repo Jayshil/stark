@@ -69,6 +69,7 @@ class SingleOrderPSF(object):
     a normalisation spectra and bad pixel map can be provided. This class works only for single order spectrum.
 
     Example usage:
+    
     >>> data = stark.SingleOrderPSF(frame=data_frame, variance=data_variance, ord_pos=ord_pos, ap_rad=aperture_radius)
     >>> psf_frame, psf_spline = data.univariate_psf_frame()
 
