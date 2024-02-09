@@ -9,8 +9,10 @@ well with the spectral extraction from any dataset. See, the tutorials below to 
 :code:`stark` is under an active developement in a public repository at `GitHub <https://github.com/Jayshil/stark>`_.
 Feel free to open an issue there if there is any bug in the package, or if you want to request a feature.
 
+
 .. image:: https://img.shields.io/badge/GitHub-Jayshil%2Fstark-brightgreen?link=https%3A%2F%2Fgithub.com%2FJayshil%2Fstark
    :alt: Static Badge
+
 
 .. toctree::
    :maxdepth: 2
@@ -26,8 +28,10 @@ Feel free to open an issue there if there is any bug in the package, or if you w
 
    tutorials/tutorial1
 
+
 Contributions
 ==================
+
 
 The current version of the original code is developed by `Jayshil A. Patel <https://github.com/Jayshil>`_ 
 with keeping in mind analysis of spectroscopic timeseries for example from the *James Webb Space Telescope*. 
