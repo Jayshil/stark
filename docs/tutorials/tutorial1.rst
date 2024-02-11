@@ -375,8 +375,9 @@ return PSF frame and best-fitted spline object.
     data1d = SingleOrderPSF(frame=corrected_data[:,4:,xpos[0]:xpos[-1]+1],\
                             variance=corrected_errs[:,4:,xpos[0]:xpos[-1]+1]**2,\
                             ord_pos=ypos2d, ap_rad=9., mask=mask_bcr[:,4:,xpos[0]:xpos[-1]+1])
-    psf_frame1d, psf_spline1d = data1d.univariate_psf_frame(niters=3, oversample=2, clip=10000)
+    psf_frame1d, psf_spline1d, _ = data1d.univariate_psf_frame(niters=3, oversample=2, clip=10000)
 
+    # Details of the data, in form of a pixel table (see, API) is stored in data.norm_array
     ts1 = np.linspace(np.min(data1d.norm_array[:,0]), np.max(data1d.norm_array[:,0]), 1000)
     msk1 = np.asarray(data1d.norm_array[:,4], dtype=bool)
     plt.figure(figsize=(16/1.5, 9/1.5))
@@ -398,6 +399,17 @@ return PSF frame and best-fitted spline object.
 Nice! Above plot shows all data points (in blue) as a function of distance from trace and black line 
 is the best-fitted PSF. As a first estimate this is looking very good. Let's now use this PSF to find t
 imeseries of stellar spectra using :code:`optimal_extract` function.
+
+(The third return variable which we did not save above while doing :code:`data1.univariate_psf_frame` is 
+updated mask returned by the function. When we fit a spline to the data, it will identify outliers points 
+beyond our preferred clipping limit -- :code:`clip` argument -- and add them to the mask. Along with the PSF 
+frame and the spline object, :code:`univariate_psf_frame` (and also the :code:`bivariate_psf_frame`, see below) functions
+will return this mask in form of pixel table. Users can use :code:`data1d.table2frame` function to get 
+back a 2D updated mask.
+
+This type of sigma clipping is usually useful to identify cosmic rays. In this example, however, we used a 
+different method to identify cosmic rays (see, above), so we do not need to perform a sigma clipping here again.
+That is why we used :code:`clip=10000` to essentially perform no sigma clipping. See, Tutorial 2 for more information on this.)
 
 .. code-block:: python
 
