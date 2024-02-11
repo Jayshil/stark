@@ -123,14 +123,14 @@ class SingleOrderPSF(object):
         """ To produce pixel list with source coordinates
         
         Given a 3D data cube, this function produces an array, stored as `self.pix_array`, with pixel coordinates (distace from order position), 
-        their flux, variances, column number and mask. Also generates a 3D array (`self.col_array_pos`) of size [nints, ncols, 2] to store positions
+        their flux, variances, column number and mask. Also generates a 3D array (`self.col_array_pos`) of size [nints, ncols, 3] to store positions
         of pixels in `self.pix_array`. E.g., if the data in `self.pix_array` from columns 100 to 300 are desired, those corresponds to indices
         `self.col_array_pos[i,100,0] to `self.col_array_pos[i,300,0]` for i-th integration in the `self.pix_array`. 
         This information is to be used when producing PSFs. This function works for single order spectrum.
 
         """
         
-        self.col_array_pos = np.zeros((self.nints, self.ncols, 2), dtype=int) # position and length in array
+        self.col_array_pos = np.zeros((self.nints, self.ncols, 3), dtype=int) # position and length in array
         pix_list = []
         col_pos = 0
 
@@ -155,6 +155,7 @@ class SingleOrderPSF(object):
                 col_array[:,3] = np.ones(npix)*col                                        # Column number
                 col_array[:,4] = self.mask[integration, i0:i1, col]                       # mask
                 self.col_array_pos[integration, col, 1] = npix
+                self.col_array_pos[integration, col, 2] = i0
                 col_pos += npix
                 pix_list.append(col_array)         # Is a list containing col_array for each column
             
@@ -215,7 +216,13 @@ class SingleOrderPSF(object):
         # To sort array
         sortarg =  np.argsort(self.norm_array[:,0])
         sort_arr = self.norm_array[sortarg,:]
-        psf_spline, mask = fit_spline_univariate(sort_arr, **kwargs)
+        psf_spline, mask_sort = fit_spline_univariate(sort_arr, **kwargs)
+
+        ## Re-sorting the mask
+        all_ind = np.arange(len(self.norm_array[:,0]))    # To "remember" location before sorting
+        sort_all_ind = all_ind[sortarg]
+        unsort_ind = np.argsort(sort_all_ind)
+        mask_unsort = mask_sort[unsort_ind]
 
         for integration in range(self.nints):
             for col in range(self.ncols):
@@ -231,7 +238,7 @@ class SingleOrderPSF(object):
                 x = np.arange(i0,i1) - self.ord_pos[integration, col]
                 psf_frame[integration, i0:i1, col] = np.maximum(psf_spline(x), 0) # Enforce positivity
                 psf_frame[integration, i0:i1, col] /= np.sum(psf_frame[integration, i0:i1, col]) # Enforce normalisation (why commented)
-        return psf_frame, psf_spline
+        return psf_frame, psf_spline, mask_unsort
     
     def univariate_multi_psf_frame(self, colrad = 100, **kwargs):
         """ To generate PSF frame using fitting 1D-spline to a window of multiple columns around given column
@@ -253,6 +260,7 @@ class SingleOrderPSF(object):
 
         psf_frame = np.copy(self.frame)
         psf_spline_all = []
+        mask_norm_arr = np.copy(self.norm_array[:,4])
         
         for col in tqdm(range(self.ncols)):
             for retry in range(nretries):
@@ -268,8 +276,15 @@ class SingleOrderPSF(object):
                     ind1 = np.where((self.norm_array[:,3]>=col_start)&(self.norm_array[:,3]<=col_end))
                     sub_arr = self.norm_array[ind1[0],:]               # Desired sub-array
                     sort_arr = sub_arr[sub_arr[:,0].argsort(),:]       # Sorted sub-array for 1d spline fitting
-                    psf_spline, mask = fit_spline_univariate(sort_arr, **kwargs)
+                    psf_spline, mask_sorted = fit_spline_univariate(sort_arr, **kwargs)
                     psf_spline_all.append(psf_spline)
+                    
+                    # Sorting the mask
+                    all_ind = np.arange(sub_arr.shape[0])
+                    sort_ind = all_ind[sub_arr[:,0].argsort()]
+                    unsort_ind = np.argsort(sort_ind)
+                    mask_unsort = mask_sorted[unsort_ind]
+                    mask_norm_arr[ind1[0]] = mask_unsort
                 except IndexError:
                     curr_rad *= 2
                     print('Retrying with colrad = {:d} columns'.format(curr_rad))
@@ -291,7 +306,7 @@ class SingleOrderPSF(object):
                 psf_frame[integration, i0:i1, col] = np.maximum(psf_spline(x), 0) # Enforce positivity
                 psf_frame[integration, i0:i1, col] /= np.sum(psf_frame[integration, i0:i1, col]) # Enforce normalisation
 
-        return psf_frame, psf_spline_all
+        return psf_frame, psf_spline_all, mask_norm_arr
 
     def bivariate_psf_frame(self, **kwargs):
         """To generate PSF frame by fitting a bivariate spline to the whole dataset
@@ -315,7 +330,7 @@ class SingleOrderPSF(object):
         psf_frame = np.copy(self.frame)
 
         # To sort array
-        psf_spline, mask = fit_spline_bivariate(self.norm_array, **kwargs)
+        psf_spline, mask_sort = fit_spline_bivariate(self.norm_array, **kwargs)
 
         for integration in range(self.nints):
             for col in range(self.ncols):
@@ -331,7 +346,16 @@ class SingleOrderPSF(object):
                 x = np.arange(i0,i1) - self.ord_pos[integration, col]
                 psf_frame[integration, i0:i1, col] = np.maximum(psf_spline(x, np.ones(x.shape)*col, grid=False), 0) # Enforce positivity
                 psf_frame[integration, i0:i1, col] /= np.sum(psf_frame[integration, i0:i1, col])                        # Enforce normalisation
-        return psf_frame, psf_spline
+        return psf_frame, psf_spline, mask_sort
+     
+    def table2frame(self, table):
+        """This helper function is to generate back 2D frames from pixel table in self.norm_array"""
+        data2d = np.ones(self.frame.shape)
+        for inte in range(self.nints):
+            for col in range(self.ncols):
+                ind0, npix, i0 = self.col_array_pos[inte,col,0], self.col_array_pos[inte,col,1], self.col_array_pos[inte,col,2]
+                data2d[inte, i0:i0+npix, col] = table[ind0:ind0+npix]
+        return data2d
 
 def optimal_extract(psf_frame, data, variance, mask, ord_pos, ap_rad):
     """Use derived PSF frame (the psf sampled on the image) to extract the spectrum.
