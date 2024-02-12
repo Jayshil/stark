@@ -42,7 +42,9 @@ Let's first visualise the data:
     plt.title('The data frame')
 
 .. figure:: T2/data.png
-   :alt: The data frame
+    :width: 100pt
+    :align: center
+    :alt: The data frame
 
 
 Correcting the data and background subtraction
