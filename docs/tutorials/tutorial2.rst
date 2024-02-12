@@ -41,7 +41,7 @@ Let's first visualise the data:
     im.set_clim([0,100])
     plt.title('The data frame')
 
-.. figure:: T1/data.png
+.. figure:: T2/data.png
    :alt: The data frame
 
 
