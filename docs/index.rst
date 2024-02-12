@@ -27,6 +27,7 @@ Feel free to open an issue there if there is any bug in the package, or if you w
    :caption: Tutorials
 
    tutorials/tutorial1
+   tutorials/tutorial2
 
 
 Contributions
