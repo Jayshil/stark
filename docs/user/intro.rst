@@ -85,5 +85,5 @@ spectrum, its variance and a synthetic data frame. A synthetic frame is a frame 
 the best-fitted PSF (rather, pixel sampled estimate, :code:`psf_frame`) and optimal spectrum. One can
 subtract this synthetic frame from the data frame to find residual frame which is an important diagnostic tool.
 
-additionally, :code:`stark` also provides some functions to perform a background subtraction and 
+Additionally, :code:`stark` also provides some functions to perform a background subtraction and 
 tracing the spectrum. Please see the API documentation for more details on this.
