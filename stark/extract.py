@@ -71,12 +71,12 @@ class SingleOrderPSF(object):
     Example usage:
     
     >>> data = stark.SingleOrderPSF(frame=data_frame, variance=data_variance, ord_pos=ord_pos, ap_rad=aperture_radius)
-    >>> psf_frame, psf_spline = data.univariate_psf_frame()
+    >>> psf_frame, psf_spline, mask_updated = data.univariate_psf_frame()
 
     when fitting a univariate spline, as function of pixel coordinate, to the whole dataset, or,
 
     >>> data = stark.SingleOrderPSF(frame=data_frame, variance=data_variance, ord_pos=ord_pos, ap_rad=aperture_radius)
-    >>> psf_frame, psf_spline = data.bivariate_psf_frame()
+    >>> psf_frame, psf_spline, mask_updated = data.bivariate_psf_frame()
 
     when fitting bivariate spline, as function of pixel coordinate and column number, to the whole dataset.
 
@@ -120,7 +120,7 @@ class SingleOrderPSF(object):
         self.norm_flux_coo()
     
     def flux_coo(self):
-        """ To produce pixel list with source coordinates
+        """ To produce pixel list / pixel table with source coordinates
         
         Given a 3D data cube, this function produces an array, stored as `self.pix_array`, with pixel coordinates (distace from order position), 
         their flux, variances, column number and mask. Also generates a 3D array (`self.col_array_pos`) of size [nints, ncols, 3] to store positions
@@ -173,6 +173,9 @@ class SingleOrderPSF(object):
         
         Given the `self.pixel array` and `self.col_array_pos` from `self.flux_coo` function, this function provides the normalized fluxes.
         If no normalisation spectrum is provided, the pixel sum is used.
+
+        Generates the normalised pixel table with 0th, 1st, 2nd, 3rd and 4th columns containing data of
+        pixel coordinate (distance from the trace), flux, variance, column number and (bad-pixel) mask.
         
         """
         
@@ -209,6 +212,9 @@ class SingleOrderPSF(object):
             Data cube containing pixel-sampled PSF for each column
         psf_spline : `scipy.interpolate.LSQUnivariateSpline`
             Fitted spline object
+        mask : ndarray, in the same format as self.norm_flux_coo[:,4]
+            Mask that includes pixels that are marked as outlier by sigma clipping perfored
+            while fitting the spline
         """
         
         psf_frame = np.copy(self.frame)
@@ -253,6 +259,16 @@ class SingleOrderPSF(object):
             Default is 100
         **kwargs :
             Additional keywords provided to `fit_spline_univariate` function and to LSQUniivariateSpline
+        
+        Returns
+        -------
+        psf_frame : ndarray
+            Data cube containing pixel-sampled PSF for each column
+        psf_spline : A list containing `scipy.interpolate.LSQUnivariateSpline` objects
+            Fitted spline objects, one object per column
+        mask : ndarray, in the same format as self.norm_flux_coo[:,4]
+            Mask that includes pixels that are marked as outlier by sigma clipping perfored
+            while fitting the spline
         """
 
         nretries = 4
@@ -323,8 +339,11 @@ class SingleOrderPSF(object):
         -------
         psf_frame : ndarray
             Data cube containing pixel-sampled PSF for each column
-        psf_spline : `scipy.interpolate.LSQUnivariateSpline`
+        psf_spline : `scipy.interpolate.LSQBivariateSpline`
             Fitted spline object
+        mask : ndarray, in the same format as self.norm_flux_coo[:,4]
+            Mask that includes pixels that are marked as outlier by sigma clipping perfored
+            while fitting the spline
         """
         
         psf_frame = np.copy(self.frame)

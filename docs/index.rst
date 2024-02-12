@@ -15,11 +15,11 @@ Feel free to open an issue there if there is any bug in the package, or if you w
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: User Guide
 
-   user/intro
    user/install
+   user/intro
    user/api
 
 .. toctree::
