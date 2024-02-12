@@ -203,7 +203,7 @@ Let's now visualise our data -- we will display one randomly selected frame belo
     plt.imshow(corrected_data_wo_bkg[nint,4:,:], interpolation='none', aspect='auto')
     plt.title('Example data frame')
 
-.. figure:: Example_data_frame.png
+.. figure:: T1/Example_data_frame.png
    :alt: Example data frame
 
 It looks good! So, there are 256 rows (spatial direction) and 2048 columns (dispersion direction). 
@@ -219,7 +219,7 @@ The location of the trace is clearly seen. Let's plot the value of flux for a gi
     plt.ylabel('Counts')
     plt.title('Flux level in an arbitrary column of an arbitrary integration')
 
-.. figure:: flx_lvl_col.png
+.. figure:: T1/flx_lvl_col.png
     :alt: Flux levels along the row for a given column
 
 It is evident that the flux values in the background are not exactly zero. So, we need to perform a 
@@ -247,7 +247,7 @@ a way:
     plt.imshow(msk_bkg, interpolation='none')
     plt.title('Background mask')
 
-.. figure:: bkg_msk.png
+.. figure:: T1/bkg_msk.png
     :alt: Background mask
 
 And, below we do background subtraction using **:code:`stark`** functions :code:`stark.reduce.polynomial_bkg_cols` 
@@ -275,10 +275,10 @@ And, below we do background subtraction using **:code:`stark`** functions :code:
     plt.imshow(sub_bkg_row[nint,:,None] * np.ones(corrected_data[nint,:,:].shape), cmap='plasma', interpolation='none')
     plt.title('Subtracted background along the row for an arbitrary frame')
 
-.. figure:: bkg_cols.png
+.. figure:: T1/bkg_cols.png
     :alt: Subtracted background along columns
 
-.. figure:: bkg_rows.png
+.. figure:: T1/bkg_rows.png
     :alt: Subtracted background along rows
 
 
@@ -330,7 +330,7 @@ integration.
     plt.ylim([50,0])
     plt.title('Example data with the location of spectral trace')
 
-.. figure:: Trace.png
+.. figure:: T1/Trace.png
     :alt: Example data from with the location of spectral trace
 
 What we plot above is the median trace location -- on the top of this there should be a jitter of 
@@ -344,7 +344,7 @@ trace as a function of time. Let's plot that jitter below:
     plt.ylim([-0.007, 0.007])
     plt.ylabel('Jitter')
 
-.. figure:: jitter.png
+.. figure:: T1/jitter.png
     :alt: Jitter of the spectral trace
 
 The trace looks more or less stable, the average jitter is at around 0.004 pixels -- that is very good! 
@@ -393,7 +393,7 @@ return PSF frame and best-fitted spline object.
     Iter 2 / 3: 1.90234 per cent masked.
     Iter 3 / 3: 1.90234 per cent masked.
 
-.. figure:: 1dspline.png
+.. figure:: T1/1dspline.png
     :alt: Best-fitted 1D spline to the data as a function of pixel coordinate
 
 Nice! Above plot shows all data points (in blue) as a function of distance from trace and black line 
@@ -497,7 +497,7 @@ visualise data and fitted splines for one given colum.
     plt.xlabel('Distance from the trace')
     plt.ylabel('Normalised flux')
 
-.. figure:: 2dspline.png
+.. figure:: T1/2dspline.png
     :alt: Best-fitted 2D spline to the data from an arbitrary column for all integrations
 
 The blue and black (barely visible) points are original data points and their estimated value based on 
@@ -560,7 +560,7 @@ function of wavelength. So, let's now see how PSF (i.e., its amplitude and FWHM)
 
     plt.tight_layout()
 
-.. figure:: amp_fwhm.png
+.. figure:: T1/amp_fwhm.png
     :alt: Evolution of amplitude and FWHM as a function of column number (i.e., wavelength)
 
 Both the amplitude and FWHM is a bit wiggly. This maybe because we used `oversample=2` while fitting 
@@ -607,7 +607,7 @@ with minimum MAD on white-light lightcurve.
     plt.xlabel('Aperture half-width')
     plt.ylabel('MAD of white-light lightcurve')
 
-.. figure:: scat_vs_ap.png
+.. figure:: T1/scat_vs_ap.png
     :alt: MAD value of white-light light curve as a function of aperture half-width
 
 Optimal extraction of the spectral timeseries
@@ -639,7 +639,7 @@ Let's plot all spectra (or, spectral timeseries) on the top of each other:
     plt.ylabel('#')
     plt.title('Timeseries of spectra')
 
-.. figure:: spec_timeseries.png
+.. figure:: T1/spec_timeseries.png
     :alt: Spectra timeseries
 
 
@@ -702,19 +702,19 @@ So, now, let's see how the median residual frame looks like:
     plt.xlim([4*315, 5*315])
     plt.ylim([20,40])
 
-.. figure:: resid1.png
+.. figure:: T1/resid1.png
     :alt: Residuals1
 
-.. figure:: resid2.png
+.. figure:: T1/resid2.png
     :alt: Residuals2
 
-.. figure:: resid3.png
+.. figure:: T1/resid3.png
     :alt: Residuals3
 
-.. figure:: resid4.png
+.. figure:: T1/resid4.png
     :alt: Residuals4
 
-.. figure:: resid5.png
+.. figure:: T1/resid5.png
     :alt: Residuals5
 
 
@@ -742,7 +742,7 @@ Now, we will compute white-light lightcurve by taking a weighted average of spec
     plt.ylabel('Relative flux')
     plt.savefig('white_lc.png', dpi=500)
 
-.. figure:: white_lc.png
+.. figure:: T1/white_lc.png
     :alt: White-light light curve
 
 This is interesting! Probably the cleanest light curve one might have ever seen. This is a raw light curve but 
@@ -792,5 +792,5 @@ computed for each column:
 
     plt.savefig('2dtrans_spec.png', dpi=500)
 
-.. figure:: 2dtrans_spec.png
+.. figure:: T1/2dtrans_spec.png
     :alt: 2D transit lightcurves
