@@ -27,8 +27,7 @@ by :code:`stark` to store and read all data. See, API documentation for how to r
 Once the data is loaded, we can fit splines to these data to obtain an estimate of stellar PSF.
 There are three methods available to estimate the PSF.
 
-- :code:`univariate_psf_frame`: this will fit a single 1D spline to *all* data as a function of pixel-coordinate
-(i.e., distance from the trace). This can be achieved by running
+- :code:`univariate_psf_frame`: this will fit a single 1D spline to *all* data as a function of pixel-coordinate (i.e., distance from the trace). This can be achieved by running
 
 .. code-block:: python
     
@@ -37,15 +36,13 @@ There are three methods available to estimate the PSF.
 A rule of thumb is that although this function is very good for determining an initial estimate of the PSF,
 it will not produce a robust estimate of the PSF.
 
-- :code:`univariate_multi_psf_frame`: this method will fit 1D splines to data within a moving window 
-of N columns around a given column.
+- :code:`univariate_multi_psf_frame`: this method will fit 1D splines to data within a moving window  of N columns around a given column.
 
 .. code-block:: python
 
     psf_frame, psf_spline, mask_update = data.univariate_multi_psf_frame(colrad = 50)
 
-- :code:`bivariate_psf_frame`: this function will fit a 2D spline to the data as a function of
-pixel-coordinate (distance from the trace) and wavelength (or, rather, column number).
+- :code:`bivariate_psf_frame`: this function will fit a 2D spline to the data as a function of pixel-coordinate (distance from the trace) and wavelength (or, rather, column number).
 
 .. code-block:: python
 
