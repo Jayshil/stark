@@ -38,7 +38,7 @@ The current version of the original code is developed by `Jayshil A. Patel <http
 with keeping in mind analysis of spectroscopic timeseries for example from the *James Webb Space Telescope*. 
 The concept of the code was originally developed by `Alexis Brandeker <https://github.com/alphapsa>`_ and initial versions are 
 implemented by Marcus Karlsson and Erwan Taillanter. Later, the code was adapted to process UVES 
-data by Gayathri Viswanath and Maria Cavallius with valuable contributions from Markus Janson.
+data by `Gayathri Viswanath <https://github.com/gayaviswa>`_ and Maria Cavallius with valuable contributions from Markus Janson.
 
 We love contributions! :code:`stark` is open source, built on open source, and we'd love to have you 
 hang out in our community. Feel free to make a *fork* and open a *pull request* to the *dev* branch of 
